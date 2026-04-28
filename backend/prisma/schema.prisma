@@ -39,8 +39,7 @@ parentId Int?
 hotelId Int?
 code String? @unique
 isActive Boolean @default(true)
-parent Location? @relation("LocationTree", fields: [parentId], references:
-[id])
+parent Location? @relation("LocationTree", fields: [parentId], references:[id])
 children Location[] @relation("LocationTree")
 tickets MaintenanceTicket[]
 }
@@ -87,18 +86,12 @@ resolvedAt DateTime?
 closedAt DateTime?
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
-location Location @relation(fields: [locationId],
-references: [id])
-category MaintenanceCategory @relation(fields: [categoryId],
-references: [id])
-priority MaintenancePriority @relation(fields: [priorityId],
-references: [id])
-status MaintenanceStatus @relation(fields: [statusId],
-references: [id])
-reportedBy User @relation("ReportedBy", fields: [reportedByUserId],
-references: [id])
-assignedTo User? @relation("AssignedTo", fields: [assignedToUserId],
-references: [id])
+location Location @relation(fields: [locationId],references: [id])
+category MaintenanceCategory @relation(fields: [categoryId],references: [id])
+priority MaintenancePriority @relation(fields: [priorityId],references: [id])
+status MaintenanceStatus @relation(fields: [statusId],references: [id])
+reportedBy User @relation("ReportedBy", fields: [reportedByUserId],references: [id])
+assignedTo User? @relation("AssignedTo", fields: [assignedToUserId],references: [id])
 comments MaintenanceComment[]
 attachments MaintenanceAttachment[]
 assignments MaintenanceAssignment[]
@@ -122,10 +115,8 @@ mimeType String
 fileSize Int
 uploadedByUserId Int
 createdAt DateTime @default(now())
-ticket MaintenanceTicket @relation(fields: [ticketId], references:
-[id])
-uploadedBy User @relation(fields: [uploadedByUserId],
-references: [id])
+ticket MaintenanceTicket @relation(fields: [ticketId], references:[id])
+uploadedBy User @relation(fields: [uploadedByUserId],references: [id])
 
 }
 model MaintenanceAssignment {
@@ -136,10 +127,7 @@ assignedByUserId Int
 assignedAt DateTime @default(now())
 unassignedAt DateTime?
 note String?
-ticket MaintenanceTicket @relation(fields: [ticketId], references:
-[id])
-assignedTo User @relation("AssignedTo", fields: [assignedToUserId],
-references: [id])
-assignedBy User @relation("AssignedBy", fields: [assignedByUserId],
-references: [id])
+ticket MaintenanceTicket @relation(fields: [ticketId], references:[id])
+assignedTo User @relation("AssignedTo", fields: [assignedToUserId],references: [id])
+assignedBy User @relation("AssignedBy", fields: [assignedByUserId],references: [id])
 }
