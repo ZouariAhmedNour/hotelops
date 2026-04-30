@@ -1,6 +1,6 @@
 
 const { setupSwagger } = require('./config/swagger');
-const { errorHandler } = require('./middleware/errorHandler');
+
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
@@ -36,3 +36,7 @@ app.use('/api/attachments', attachmentRoutes);
 // Gestion centralisée des erreurs (toujours en dernier)
 app.use(errorHandler);
 module.exports = app;
+
+function express() {
+    throw new Error("Function not implemented.");
+}
