@@ -1,27 +1,35 @@
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
 
-const { setupSwagger } = require('./config/swagger');
+import { setupSwagger } from './config/swagger';
+import { errorHandler } from './middleware/errorHandler';
 
-// Import routes
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const roleRoutes = require('./routes/roleRoutes');
-const locationRoutes = require('./routes/locationRoutes');
-const categoryRoutes = require('./routes/categoryRoutes');
-const priorityRoutes = require('./routes/priorityRoutes');
-const statusRoutes = require('./routes/statusRoutes');
-const ticketRoutes = require('./routes/ticketRoutes');
-const commentRoutes = require('./routes/commentRoutes');
+// Routes
+import authRoutes from './routes/authRoutes';
+import userRoutes from './routes/userRoutes';
+import roleRoutes from './routes/roleRoutes';
+import locationRoutes from './routes/locationRoutes';
+import categoryRoutes from './routes/categoryRoutes';
+import priorityRoutes from './routes/priorityRoutes';
+import statusRoutes from './routes/statusRoutes';
+import ticketRoutes from './routes/ticketRoutes';
+import commentRoutes from './routes/commentRoutes';
+import attachmentRoutes from './routes/attachmentRoutes';
 
-const attachmentRoutes = require('./routes/attachmentRoutes');
 const app = express();
-// Middleware globaux
+
+// Middlewares globaux
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-// Servir les fichiers uploadés
-app.use('/uploads', express.static(path.join(__dirname, ';..', 'uploads')));
+
+// Fichiers statiques
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
 // Swagger
 setupSwagger(app);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -33,10 +41,8 @@ app.use('/api/statuses', statusRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/comments', commentRoutes);
 app.use('/api/attachments', attachmentRoutes);
-// Gestion centralisée des erreurs (toujours en dernier)
-app.use(errorHandler);
-module.exports = app;
 
-function express() {
-    throw new Error("Function not implemented.");
-}
+// Error handler (toujours en dernier)
+app.use(errorHandler);
+
+export default app;
