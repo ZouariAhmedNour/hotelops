@@ -1,39 +1,40 @@
-import { NextFunction, Router, Request, Response } from "express";
-import { authenticate } from "../middleware/auth";
-import { upload } from "../config/multer";
-import { success } from "../utils/response";
+import { Router, Request, Response, NextFunction } from 'express';
+import { authenticate } from '../middleware/auth';
+import { upload } from '../config/multer';
+import { success } from '../utils/response';
 import * as attachmentService from '../services/attachmentService';
-
-// 🔹 Type pour req.user (injecté par authenticate)
-interface AuthRequest extends Request {
-  user?: {
-    userId: number;
-  };
-  file?: Express.Multer.File;
-}
+import { registry } from '../config/swagger';
 
 const router = Router();
 
-// 🔹 Middleware auth global
+// 🔹 Swagger
+registry.registerPath({
+  method: 'post',
+  path: '/api/attachments/tickets/{ticketId}/attachments',
+  tags: ['Attachments'],
+  responses: {
+    201: { description: 'Fichier uploadé' },
+  },
+});
+
+registry.registerPath({
+  method: 'delete',
+  path: '/api/attachments/{id}',
+  tags: ['Attachments'],
+  responses: {
+    200: { description: 'Pièce jointe supprimée' },
+  },
+});
+
+// 🔹 Auth middleware
 router.use(authenticate);
 
 // ================= UPLOAD =================
 router.post(
   '/tickets/:ticketId/attachments',
   upload.single('file'),
-  async (req: AuthRequest, res: Response, next: NextFunction) => {
+  async (req: any, res: Response, next: NextFunction) => {
     try {
-      if (!req.user) {
-        throw Object.assign(new Error('Non authentifié'), { statusCode: 401 });
-      }
-
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          message: 'Fichier manquant',
-        });
-      }
-
       const attachment = await attachmentService.addAttachment(
         Number(req.params.ticketId),
         req.file,
@@ -48,24 +49,17 @@ router.post(
 );
 
 // ================= DELETE =================
-router.delete(
-  '/attachments/:id',
-  async (req: AuthRequest, res: Response, next: NextFunction) => {
-    try {
-      if (!req.user) {
-        throw Object.assign(new Error('Non authentifié'), { statusCode: 401 });
-      }
+router.delete('/:id', async (req: any, res, next) => {
+  try {
+    await attachmentService.deleteAttachment(
+      Number(req.params.id),
+      req.user.userId
+    );
 
-      await attachmentService.deleteAttachment(
-        Number(req.params.id),
-        req.user.userId
-      );
-
-      return success(res, null, 'Pièce jointe supprimée');
-    } catch (err) {
-      next(err);
-    }
+    return success(res, null, 'Pièce jointe supprimée');
+  } catch (err) {
+    next(err);
   }
-);
+});
 
 export default router;

@@ -1,9 +1,9 @@
-import { MaintenanceAttachment } from "@prisma/client";
+import { PrismaClient, MaintenanceAttachment } from '@prisma/client';
 import fs from 'fs';
 
 const prisma = new PrismaClient();
 
-// ================= ADD ATTACHMENT =================
+// ================= ADD =================
 export const addAttachment = async (
   ticketId: number,
   file: Express.Multer.File,
@@ -21,7 +21,7 @@ export const addAttachment = async (
   });
 };
 
-// ================= DELETE ATTACHMENT =================
+// ================= DELETE =================
 export const deleteAttachment = async (
   id: number,
   userId: number
@@ -36,7 +36,18 @@ export const deleteAttachment = async (
     });
   }
 
-  // 🔹 Suppression fichier physique
+  // 🔹 (Optionnel) sécurité basique :
+  // empêcher suppression si ce n’est pas le propriétaire
+  // 👉 décommente si tu veux activer
+  /*
+  if (attachment.uploadedByUserId !== userId) {
+    throw Object.assign(new Error('Non autorisé'), {
+      statusCode: 403,
+    });
+  }
+  */
+
+  // 🔹 Suppression fichier disque
   if (fs.existsSync(attachment.filePath)) {
     fs.unlinkSync(attachment.filePath);
   }

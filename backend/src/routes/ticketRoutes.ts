@@ -1,140 +1,67 @@
-import { Request, Response, NextFunction } from 'express';
-import * as ticketService from '../services/ticketService';
-import { success } from '../utils/response';
+import { Router } from 'express';
+import * as ticketController from '../controllers/ticketController';
+import { authenticate } from '../middleware/auth';
 import { z } from 'zod';
+import { registry } from '../config/swagger';
 
-// ================= TYPES =================
+const router = Router();
 
-// 🔹 Type pour req.user (injecté par authenticate middleware)
-interface AuthRequest extends Request {
-  user?: {
-    userId: number;
-  };
-}
-
-// ================= SCHEMAS =================
-
-const createSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().min(5),
-  locationId: z.number().int().positive(),
-  categoryId: z.number().int().positive(),
-  priorityId: z.number().int().positive(),
+// 🔹 Schema
+const createTicketSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  locationId: z.number(),
+  categoryId: z.number(),
+  priorityId: z.number(),
   reportedFrom: z.string().optional(),
-  urgencyLevel: z.number().int().min(1).max(5).optional(),
+  urgencyLevel: z.number().optional(),
 });
 
-// ================= CREATE =================
+// 🔹 Swagger
+registry.registerPath({
+  method: 'post',
+  path: '/api/tickets',
+  tags: ['Tickets'],
+  request: {
+    body: {
+      content: {
+        'application/json': {
+          schema: createTicketSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    201: { description: 'Ticket créé' },
+  },
+});
 
-export const create = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    if (!req.user) {
-      throw Object.assign(new Error('Non authentifié'), { statusCode: 401 });
-    }
+registry.registerPath({
+  method: 'get',
+  path: '/api/tickets',
+  tags: ['Tickets'],
+  responses: {
+    200: { description: 'Liste des tickets' },
+  },
+});
 
-    const data = createSchema.parse(req.body);
+registry.registerPath({
+  method: 'get',
+  path: '/api/tickets/{id}',
+  tags: ['Tickets'],
+  responses: {
+    200: { description: 'Détail ticket' },
+  },
+});
 
-    const ticket = await ticketService.createTicket(
-      data,
-      req.user.userId
-    );
+// 🔹 Middleware
+router.use(authenticate);
 
-    return success(res, ticket, 'Ticket créé', 201);
-  } catch (err) {
-    next(err);
-  }
-};
+// 🔹 Routes
+router.post('/', ticketController.create);
+router.get('/', ticketController.list);
+router.get('/:id', ticketController.getOne);
+router.post('/:id/assign', ticketController.assign);
+router.patch('/:id/status', ticketController.changeStatus);
 
-// ================= LIST =================
-
-export const list = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const result = await ticketService.listTickets(req.query);
-
-    return success(res, result);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ================= GET ONE =================
-
-export const getOne = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const ticketId = Number(req.params.id);
-
-    const ticket = await ticketService.getTicketById(ticketId);
-
-    return success(res, ticket);
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ================= ASSIGN =================
-
-export const assign = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    if (!req.user) {
-      throw Object.assign(new Error('Non authentifié'), { statusCode: 401 });
-    }
-
-    const ticketId = Number(req.params.id);
-    const assignedToUserId = Number(req.body.assignedToUserId);
-    const note: string | undefined = req.body.note;
-
-    const ticket = await ticketService.assignTicket(
-      ticketId,
-      assignedToUserId,
-      req.user.userId,
-      note
-    );
-
-    return success(res, ticket, 'Ticket assigné');
-  } catch (err) {
-    next(err);
-  }
-};
-
-// ================= STATUS =================
-
-export const changeStatus = async (
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    if (!req.user) {
-      throw Object.assign(new Error('Non authentifié'), { statusCode: 401 });
-    }
-
-    const ticketId = Number(req.params.id);
-    const { statusCode } = req.body;
-
-    const ticket = await ticketService.changeStatus(
-      ticketId,
-      statusCode,
-      req.user.userId
-    );
-
-    return success(res, ticket, 'Statut mis à jour');
-  } catch (err) {
-    next(err);
-  }
-};
+export default router;

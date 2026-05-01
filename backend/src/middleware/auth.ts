@@ -3,11 +3,14 @@ import jwt from 'jsonwebtoken';
 import { jwtSecret } from '../config/env';
 import { error } from '../utils/response';
 
+// 🔹 Payload JWT aligné avec ton authService
 interface JwtPayload {
-  id: number;
+  userId: number;
+  email: string;
   roleCode: string;
 }
 
+// 🔹 Middleware authenticate
 export const authenticate = (
   req: Request & { user?: JwtPayload },
   res: Response,
@@ -23,20 +26,26 @@ export const authenticate = (
 
   try {
     const payload = jwt.verify(token, jwtSecret) as JwtPayload;
+
+    // 🔹 inject user
     req.user = payload;
+
     next();
   } catch (err) {
     return error(res, 'Token invalide ou expiré', 401);
   }
 };
 
+// 🔹 Middleware authorize (roles)
 export const authorize = (...roles: string[]) => {
   return (
     req: Request & { user?: JwtPayload },
     res: Response,
     next: NextFunction
   ) => {
-    if (!req.user) return error(res, 'Non authentifié', 401);
+    if (!req.user) {
+      return error(res, 'Non authentifié', 401);
+    }
 
     if (!roles.includes(req.user.roleCode)) {
       return error(res, 'Accès interdit : rôle insuffisant', 403);
