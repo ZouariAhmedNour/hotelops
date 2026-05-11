@@ -1,11 +1,15 @@
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import { useAuth } from "../contexts/useAuth";
+import MaintenanceDashboardPage from "./MaintenanceDashboardPage";
 
 const DashboardPage = () => {
   const { user } = useAuth();
   const roleCode = user?.role?.code?.toUpperCase();
 
+  if (roleCode === "CHEF_MAINT") {
+    return <MaintenanceDashboardPage />;
+  }
   if (roleCode === "RECEPTION") {
     return (
       <div className="space-y-6">
@@ -33,8 +37,8 @@ const DashboardPage = () => {
           </div>
         </div>
 
-<div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">    
-      <div className="space-y-6">
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="space-y-6">
             <Card className="p-6">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="text-2xl font-semibold text-slate-900">
@@ -50,7 +54,9 @@ const DashboardPage = () => {
                   <p className="text-sm uppercase tracking-[0.2em] text-slate-400">
                     Libres
                   </p>
-                  <p className="mt-2 text-4xl font-semibold text-slate-900">42</p>
+                  <p className="mt-2 text-4xl font-semibold text-slate-900">
+                    42
+                  </p>
                   <p className="mt-3 text-sm font-medium text-emerald-600">
                     68% du parc
                   </p>
@@ -60,7 +66,9 @@ const DashboardPage = () => {
                   <p className="text-sm uppercase tracking-[0.2em] text-slate-400">
                     Occupées
                   </p>
-                  <p className="mt-2 text-4xl font-semibold text-slate-900">18</p>
+                  <p className="mt-2 text-4xl font-semibold text-slate-900">
+                    18
+                  </p>
                   <p className="mt-3 text-sm font-medium text-slate-500">
                     2 départs prévus
                   </p>
@@ -145,7 +153,10 @@ const DashboardPage = () => {
                       dot: "bg-amber-500",
                     },
                   ].map((member) => (
-                    <div key={member.name} className="flex items-center justify-between">
+                    <div
+                      key={member.name}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-3">
                         <div className="grid h-11 w-11 place-items-center rounded-full bg-slate-100 text-sm font-semibold text-[#13234b]">
                           {member.name
@@ -155,7 +166,9 @@ const DashboardPage = () => {
                             .slice(0, 2)}
                         </div>
                         <div>
-                          <p className="font-semibold text-slate-900">{member.name}</p>
+                          <p className="font-semibold text-slate-900">
+                            {member.name}
+                          </p>
                           <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
                             {member.role}
                           </p>
@@ -163,7 +176,9 @@ const DashboardPage = () => {
                       </div>
 
                       <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                        <span className={`h-2.5 w-2.5 rounded-full ${member.dot}`} />
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${member.dot}`}
+                        />
                         {member.status}
                       </div>
                     </div>
