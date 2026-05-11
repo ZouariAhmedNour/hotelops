@@ -33,8 +33,8 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="space-y-6">
+<div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">    
+      <div className="space-y-6">
             <Card className="p-6">
               <div className="mb-6 flex items-center justify-between">
                 <h3 className="text-2xl font-semibold text-slate-900">
@@ -173,8 +173,8 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <Card className="bg-[#13234b] p-6 text-white shadow-[0_20px_50px_rgba(19,35,75,0.25)]">
+          <div className="space-y-6 self-start h-fit">
+            <Card className="!bg-[#13234b] !text-white p-6 shadow-[0_20px_50px_rgba(19,35,75,0.25)]">
               <h3 className="text-2xl font-semibold">Briefing du Jour</h3>
 
               <div className="mt-6 space-y-4">
