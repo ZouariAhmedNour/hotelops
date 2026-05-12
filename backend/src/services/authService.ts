@@ -22,14 +22,12 @@ export const register = async ({
   email,
   password,
   phone,
-  roleId,
 }: {
   firstName: string;
   lastName: string;
   email: string;
   password: string;
   phone?: string;
-  roleId: number;
 }) => {
   const existing = await prisma.user.findUnique({ where: { email } });
 
@@ -39,10 +37,22 @@ export const register = async ({
     throw err;
   }
 
+const userRole = await prisma.role.findUnique({
+  where: {
+    code: 'USER',
+  },
+});
+
+if (!userRole) {
+  const err = new Error('Rôle USER introuvable') as any;
+  err.statusCode = 500;
+  throw err;
+}
+
   const passwordHash = await bcrypt.hash(password, 12);
 
   const user = await prisma.user.create({
-    data: { firstName, lastName, email, passwordHash, phone, roleId },
+    data: { firstName, lastName, email, passwordHash, phone, roleId: userRole.id, },
     include: { role: true },
   });
 

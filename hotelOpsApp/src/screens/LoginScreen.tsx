@@ -1,51 +1,42 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
+  TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Alert,
-  ActivityIndicator,
-} from "react-native";
+  ScrollView,
+} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AppInput from '../components/ui/AppInput';
+import AppButton from '../components/ui/AppButton';
+import { authService } from '../services/authService';
 
-import { useAuth } from "../contexts/AuthContext";
-import { authService } from "../services/authService";
+type Props = {
+  navigation: any;
+};
 
-const LoginScreen: React.FC = () => {
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
+export default function LoginScreen({ navigation }: Props) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const { login } = useAuth();
-
-  const handleLogin = async (): Promise<void> => {
-    // Validation simple
-    if (!email.trim() || !password.trim()) {
-      Alert.alert("Erreur", "Veuillez remplir tous les champs");
-      return;
-    }
-
+  const handleLogin = async () => {
     try {
       setLoading(true);
+      const result = await authService.login({ email, password });
 
-      const response = await authService.login({
-        email,
-        password,
+      await AsyncStorage.setItem('token', result.token);
+      await AsyncStorage.setItem('user', JSON.stringify(result.user));
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Home' }],
       });
-
-      const { token, user } = response;
-
-      await login(token, user);
-    } catch (error: any) {
-      console.error("Erreur login :", error);
-
-      Alert.alert(
-        "Erreur",
-        error?.response?.data?.message || "Connexion impossible"
-      );
+    } catch (e: any) {
+      console.log(e?.response?.data || e.message);
     } finally {
       setLoading(false);
     }
@@ -54,106 +45,121 @@ const LoginScreen: React.FC = () => {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.card}>
-        <Text style={styles.title}>Maintenance Hôtelière</Text>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.logoCircle}>
+          <MaterialCommunityIcons name="bed-outline" size={34} color="#fff" />
+        </View>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
+        <Text style={styles.title}>Le Concierge</Text>
+        <Text style={styles.subtitle}>Portail du personnel</Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Mot de passe"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
+        <View style={styles.card}>
+          <Text style={styles.h1}>Bon retour</Text>
+          <Text style={styles.description}>
+            Connectez-vous pour accéder à vos tâches et rapports d'incidents.
+          </Text>
 
-        <TouchableOpacity
-          style={[
-            styles.button,
-            loading && styles.buttonDisabled,
-          ]}
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.buttonText}>
-              Se connecter
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+          <AppInput
+            label="Email professionnel"
+            placeholder="nom@etablissement.com"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <AppInput
+            label="Mot de passe"
+            placeholder="••••••••"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <TouchableOpacity style={styles.forgot}>
+            <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+          </TouchableOpacity>
+
+          <AppButton title="Connexion" onPress={handleLogin} loading={loading} />
+
+          <View style={styles.bottomText}>
+            <Text style={styles.bottomMuted}>Pas encore membre ? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+              <Text style={styles.bottomLink}>Créer un compte</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
+  container: { flex: 1, backgroundColor: '#F4F6FA' },
+  content: {
     padding: 24,
-    backgroundColor: "#f9fafb",
+    paddingTop: 70,
+    paddingBottom: 40,
   },
-
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#1C2D5A',
+    alignSelf: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    textAlign: 'center',
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#1C2D5A',
+  },
+  subtitle: {
+    textAlign: 'center',
+    marginTop: 10,
+    fontSize: 18,
+    color: '#6B778D',
+    marginBottom: 30,
+  },
   card: {
-    backgroundColor: "#ffffff",
-    padding: 24,
-    borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    backgroundColor: '#fff',
+    borderRadius: 28,
+    padding: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
     elevation: 3,
   },
-
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 32,
-    color: "#1a3a5c",
+  h1: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#1E2B4D',
+    marginBottom: 8,
   },
-
-  input: {
-    backgroundColor: "#ffffff",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 16,
-    fontSize: 16,
+  description: {
+    color: '#67738A',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 22,
   },
-
-  button: {
-    backgroundColor: "#2563eb",
-    paddingVertical: 16,
-    borderRadius: 10,
-    alignItems: "center",
+  forgot: {
+    alignSelf: 'flex-end',
+    marginBottom: 20,
   },
-
-  buttonDisabled: {
-    opacity: 0.6,
+  forgotText: {
+    color: '#6B778D',
+    fontWeight: '600',
   },
-
-  buttonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600",
+  bottomText: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 18,
   },
+  bottomMuted: { color: '#6B778D' },
+  bottomLink: { color: '#1C2D5A', fontWeight: '800' },
 });
-
-export default LoginScreen;

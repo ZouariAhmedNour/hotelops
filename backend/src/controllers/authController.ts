@@ -11,7 +11,6 @@ const registerSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   phone: z.string().optional(),
-  roleId: z.number().int().positive(),
 });
 
 const loginSchema = z.object({
@@ -33,6 +32,7 @@ export const register = async (
   next: NextFunction
 ) => {
   try {
+    console.log(req.body);
     const data = registerSchema.parse(req.body);
     const user = await authService.register(data);
 

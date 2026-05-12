@@ -11,7 +11,6 @@ export type RegisterPayload = {
   email: string;
   password: string;
   phone?: string;
-  roleId: number;
 };
 
 export const authService = {
