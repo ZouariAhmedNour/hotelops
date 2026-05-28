@@ -8,6 +8,8 @@ import { errorHandler } from './middleware/errorHandler';
 // Routes
 import authRoutes from './routes/authRoutes';
 import ticketRoutes from './routes/ticketRoutes';
+import priorityRoutes from './routes/priorityRoutes';
+import locationRoutes from './routes/locationRoutes';
 
 
 const app = express();
@@ -26,6 +28,8 @@ setupSwagger(app);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/priorities',priorityRoutes);
 
 
 // Error handler (toujours en dernier)
