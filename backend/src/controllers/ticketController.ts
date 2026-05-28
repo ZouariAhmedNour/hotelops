@@ -40,6 +40,9 @@ export const create = async (
     const files =
       (req.files as Express.Multer.File[]) || [];
 
+      console.log("BODY =", data);
+console.log("USER =", req.user);
+
     const ticket = await ticketService.createTicket(
       data,
       req.user.userId,

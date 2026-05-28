@@ -10,6 +10,7 @@ import authRoutes from './routes/authRoutes';
 import ticketRoutes from './routes/ticketRoutes';
 import priorityRoutes from './routes/priorityRoutes';
 import locationRoutes from './routes/locationRoutes';
+import categoryRoutes from './routes/categoryRoutes';
 
 
 const app = express();
@@ -30,7 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/priorities',priorityRoutes);
-
+app.use('/api/categories', categoryRoutes);
 
 // Error handler (toujours en dernier)
 app.use(errorHandler);

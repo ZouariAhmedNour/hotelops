@@ -78,7 +78,29 @@ export const createTicket = async (
       statusCode: 500,
     });
   }
+const locationExists = await prisma.location.findUnique({
+  where: { id: data.locationId },
+});
 
+const categoryExists =
+  await prisma.maintenanceCategory.findUnique({
+    where: { id: data.categoryId },
+  });
+
+const priorityExists =
+  await prisma.maintenancePriority.findUnique({
+    where: { id: data.priorityId },
+  });
+
+const userExists = await prisma.user.findUnique({
+  where: { id: userId },
+});
+
+console.log("locationExists =", locationExists);
+console.log("categoryExists =", categoryExists);
+console.log("priorityExists =", priorityExists);
+console.log("userExists =", userExists);
+console.log("initialStatus =", initialStatus);
   return prisma.$transaction(async (tx) => {
     const ticket = await tx.maintenanceTicket.create({
       data: {
