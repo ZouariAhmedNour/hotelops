@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppCard from '../components/ui/AppCard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -32,8 +32,34 @@ const quickActionsByRole: Record<string, { title: string; icon: any; desc: strin
   ],
 };
 
-export default function HomeScreen() {
+export default function HomeScreen({
+  navigation,
+  setIsAuthenticated,
+}: any) {
   const [user, setUser] = useState<any>(null);
+
+  const handleLogout = async () => {
+  Alert.alert(
+    "Déconnexion",
+    "Voulez-vous vous déconnecter ?",
+    [
+      {
+        text: "Annuler",
+        style: "cancel",
+      },
+      {
+        text: "Déconnexion",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem("token");
+          await AsyncStorage.removeItem("user");
+
+          setIsAuthenticated(false);
+        },
+      },
+    ]
+  );
+};
 
   useEffect(() => {
     AsyncStorage.getItem('user').then((value) => {
@@ -46,7 +72,22 @@ export default function HomeScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.smallTitle}>BIENVENUE AU GRAND PALACE</Text>
+      <View style={styles.headerRow}>
+  <Text style={styles.smallTitle}>
+    BIENVENUE AU GRAND PALACE
+  </Text>
+
+  <TouchableOpacity
+    onPress={handleLogout}
+    style={styles.logoutButton}
+  >
+    <MaterialCommunityIcons
+      name="logout"
+      size={24}
+      color="#1C2D5A"
+    />
+  </TouchableOpacity>
+</View>
       <Text style={styles.bigTitle}>
         Bonjour {user?.firstName ? `${user.firstName} ${user.lastName}` : 'Utilisateur'},
       </Text>
@@ -63,18 +104,37 @@ export default function HomeScreen() {
         <Text style={styles.ticketStatus}>● Réparateur en route</Text>
       </AppCard>
 
-      <AppCard style={styles.primaryCard}>
-        <View style={styles.primaryCardRow}>
-          <View style={styles.iconBox}>
-            <MaterialCommunityIcons name="alert-outline" size={26} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.primaryCardLabel}>ASSISTANCE TECHNIQUE</Text>
-            <Text style={styles.primaryCardTitle}>Signaler un problème</Text>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={30} color="#fff" />
-        </View>
-      </AppCard>
+      <TouchableOpacity
+  onPress={() => navigation.navigate('CreateTicket')}
+>
+  <AppCard style={styles.primaryCard}>
+    <View style={styles.primaryCardRow}>
+      <View style={styles.iconBox}>
+        <MaterialCommunityIcons
+          name="alert-outline"
+          size={26}
+          color="#fff"
+        />
+      </View>
+
+      <View style={{ flex: 1 }}>
+        <Text style={styles.primaryCardLabel}>
+          ASSISTANCE TECHNIQUE
+        </Text>
+
+        <Text style={styles.primaryCardTitle}>
+          Signaler un problème
+        </Text>
+      </View>
+
+      <MaterialCommunityIcons
+        name="chevron-right"
+        size={30}
+        color="#fff"
+      />
+    </View>
+  </AppCard>
+</TouchableOpacity>
 
       <Text style={styles.sectionTitle}>Services rapides</Text>
       <View style={styles.grid}>
@@ -157,4 +217,24 @@ const styles = StyleSheet.create({
   bannerLabel: { color: '#FFFFFF', fontWeight: '800', letterSpacing: 1 },
   bannerTitle: { color: '#fff', fontSize: 28, fontWeight: '900', marginTop: 6 },
   bannerDesc: { color: '#fff', fontSize: 16, marginTop: 8 },
+
+  headerRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+},
+
+logoutButton: {
+  width: 44,
+  height: 44,
+  borderRadius: 22,
+  backgroundColor: '#FFFFFF',
+  justifyContent: 'center',
+  alignItems: 'center',
+
+  shadowColor: '#000',
+  shadowOpacity: 0.06,
+  shadowRadius: 10,
+  elevation: 3,
+},
 });

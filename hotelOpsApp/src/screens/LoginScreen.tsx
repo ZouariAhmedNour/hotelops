@@ -16,9 +16,10 @@ import { authService } from '../services/authService';
 
 type Props = {
   navigation: any;
+  setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-export default function LoginScreen({ navigation }: Props) {
+export default function LoginScreen({ navigation, setIsAuthenticated }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,10 +32,7 @@ export default function LoginScreen({ navigation }: Props) {
       await AsyncStorage.setItem('token', result.token);
       await AsyncStorage.setItem('user', JSON.stringify(result.user));
 
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Home' }],
-      });
+      setIsAuthenticated(true);
     } catch (e: any) {
       console.log(e?.response?.data || e.message);
     } finally {

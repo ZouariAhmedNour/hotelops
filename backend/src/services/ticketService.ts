@@ -1,4 +1,3 @@
-// src/services/ticketService.ts
 import { PrismaClient, Prisma } from '@prisma/client';
 
 const prisma = new PrismaClient();
@@ -38,12 +37,27 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
   _count: { select: { comments: true, attachments: true } },
 };
 
+const ticketIncludeWithAttachments: Prisma.MaintenanceTicketInclude = {
+  ...ticketInclude,
+  attachments: {
+    include: {
+      uploadedBy: {
+        select: { id: true, firstName: true, lastName: true, email: true },
+      },
+    },
+  },
+};
+
 const generateTicketNumber = async (): Promise<string> => {
   const count = await prisma.maintenanceTicket.count();
   return `TKT-${String(count + 1).padStart(6, '0')}`;
 };
 
-export const createTicket = async (data: CreateTicketInput, userId: number) => {
+export const createTicket = async (
+  data: CreateTicketInput,
+  userId: number,
+  files: Express.Multer.File[] = []
+) => {
   const ticketNumber = await generateTicketNumber();
 
   const priority = await prisma.maintenancePriority.findUnique({
@@ -65,21 +79,48 @@ export const createTicket = async (data: CreateTicketInput, userId: number) => {
     });
   }
 
-  return prisma.maintenanceTicket.create({
-    data: {
-      title: data.title,
-      description: data.description,
-      locationId: data.locationId,
-      categoryId: data.categoryId,
-      priorityId: data.priorityId,
-      reportedFrom: data.reportedFrom,
-      urgencyLevel: data.urgencyLevel,
-      ticketNumber,
-      reportedByUserId: userId,
-      statusId: initialStatus.id,
-      dueAt,
-    },
-    include: ticketInclude,
+  return prisma.$transaction(async (tx) => {
+    const ticket = await tx.maintenanceTicket.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        locationId: data.locationId,
+        categoryId: data.categoryId,
+        priorityId: data.priorityId,
+        reportedFrom: data.reportedFrom,
+        urgencyLevel: data.urgencyLevel,
+        ticketNumber,
+        reportedByUserId: userId,
+        statusId: initialStatus.id,
+        dueAt,
+      },
+    });
+
+    if (files.length > 0) {
+      await tx.maintenanceAttachment.createMany({
+        data: files.map((file) => ({
+          ticketId: ticket.id,
+          filePath: file.path,
+          fileName: file.originalname,
+          mimeType: file.mimetype,
+          fileSize: file.size,
+          uploadedByUserId: userId,
+        })),
+      });
+    }
+
+    const created = await tx.maintenanceTicket.findUnique({
+      where: { id: ticket.id },
+      include: ticketIncludeWithAttachments,
+    });
+
+    if (!created) {
+      throw Object.assign(new Error('Ticket introuvable après création'), {
+        statusCode: 500,
+      });
+    }
+
+    return created;
   });
 };
 
@@ -203,9 +244,10 @@ export const changeStatus = async (
     });
   }
 
-const updateData: Prisma.MaintenanceTicketUncheckedUpdateInput = {
-  statusId: status.id,
-};
+  const updateData: Prisma.MaintenanceTicketUncheckedUpdateInput = {
+    statusId: status.id,
+  };
+
   if (statusCode === 'resolved') updateData.resolvedAt = new Date();
   if (statusCode === 'closed' || statusCode === 'cancelled') {
     updateData.closedAt = new Date();

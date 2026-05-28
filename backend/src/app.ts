@@ -8,7 +8,7 @@ import { errorHandler } from './middleware/errorHandler';
 // Routes
 import authRoutes from './routes/authRoutes';
 import ticketRoutes from './routes/ticketRoutes';
-import attachmentRoutes from './routes/attachmentRoutes';
+
 
 const app = express();
 
@@ -26,7 +26,7 @@ setupSwagger(app);
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
-app.use('/api/attachments', attachmentRoutes);
+
 
 // Error handler (toujours en dernier)
 app.use(errorHandler);
