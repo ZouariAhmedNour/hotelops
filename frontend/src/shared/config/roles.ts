@@ -1,0 +1,10 @@
+export const ROLES = {
+  ADMIN: "ADMIN",
+  RECEPTION: "RECEPTION",
+  CHEF_MAINT: "CHEF_MAINT",
+  MAINTENANCE_AGENT: "MAINTENANCE_AGENT",
+  HOUSEKEEPING: "HOUSEKEEPING",
+  FINANCE: "FINANCE",
+} as const;
+
+export type RoleCode = (typeof ROLES)[keyof typeof ROLES];

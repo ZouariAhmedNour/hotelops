@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ticketService } from "../services/ticketService";
+import { ticketService } from "../features/maintenance/api/ticketService";
 import type { MaintenanceTicket } from "../types";
 
 const TicketDetailPage = () => {

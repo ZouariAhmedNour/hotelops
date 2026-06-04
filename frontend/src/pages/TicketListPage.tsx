@@ -4,7 +4,7 @@ import type {
   PaginatedResponse,
   TicketFilters,
 } from "../types";
-import { ticketService } from "../services/ticketService";
+import { ticketService } from "../features/maintenance/api/ticketService";
 import { Link } from "react-router-dom";
 
 const TicketListPage: React.FC = () => {

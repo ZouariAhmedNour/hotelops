@@ -1,133 +1,310 @@
+// prisma/schema.prisma
+// ============================================================
+// HotelOps — Schéma Prisma Unifié
+// ============================================================
+
 generator client {
-provider = "prisma-client-js"
+  provider = "prisma-client-js"
 }
+
 datasource db {
-provider = "postgresql"
-url = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
+
+// ============================================================
+// ROLES & UTILISATEURS
+// ============================================================
+
 model Role {
-id Int @id @default(autoincrement())
-name String @unique
-code String @unique
-description String?
-users User[]
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  code        String  @unique // ADMIN | RECEPTION | CHEF_MAINT | MAINTENANCE_AGENT
+  description String?
+
+  users User[]
 }
+
 model User {
-id Int @id @default(autoincrement())
-firstName String
-lastName String
-email String @unique
-passwordHash String
-phone String?
-roleId Int
-isActive Boolean @default(true)
-createdAt DateTime @default(now())
-role Role @relation(fields: [roleId], references: [id])
-reportedTickets MaintenanceTicket[] @relation("ReportedBy")
-assignedTickets MaintenanceTicket[] @relation("AssignedTo")
-comments MaintenanceComment[]
-attachments MaintenanceAttachment[]
-assignmentsGiven MaintenanceAssignment[] @relation("AssignedBy")
-assignmentsReceived MaintenanceAssignment[] @relation("AssignedTo")
+  id           Int      @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  email        String   @unique
+  passwordHash String
+  phone        String?
+  roleId       Int
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  role Role @relation(fields: [roleId], references: [id])
+
+  reportedTickets  MaintenanceTicket[] @relation("ReportedBy")
+  assignedTickets  MaintenanceTicket[] @relation("AssignedTo")
+  validatedTickets MaintenanceTicket[] @relation("ValidatedBy")
+
+  comments    MaintenanceComment[]
+  attachments MaintenanceAttachment[]
+
+  assignmentsGiven    MaintenanceAssignment[] @relation("AssignedBy")
+  assignmentsReceived MaintenanceAssignment[] @relation("AssignedTo")
+
+  ticketEvents MaintenanceTicketEvent[]
+  agentProfile MaintenanceAgentProfile?
 }
+
+// ============================================================
+// LOCALISATION
+// Arbre hiérarchique : Hôtel > Étage > Zone > Chambre
+// ============================================================
+
 model Location {
-id Int @id @default(autoincrement())
+  id       Int     @id @default(autoincrement())
+  name     String
+  type     String // HOTEL | FLOOR | AREA | ROOM
+  parentId Int?
+  code     String? @unique
+  isActive Boolean @default(true)
 
-name String
-type String
-parentId Int?
-hotelId Int?
-code String? @unique
-isActive Boolean @default(true)
-parent Location? @relation("LocationTree", fields: [parentId], references:[id])
-children Location[] @relation("LocationTree")
-tickets MaintenanceTicket[]
+  parent   Location?  @relation("LocationTree", fields: [parentId], references: [id])
+  children Location[] @relation("LocationTree")
+
+  tickets MaintenanceTicket[]
 }
+
+// ============================================================
+// CATÉGORIES, PRIORITÉS, STATUTS
+// ============================================================
+
 model MaintenanceCategory {
-id Int @id @default(autoincrement())
-name String
-description String?
-icon String?
-isActive Boolean @default(true)
-tickets MaintenanceTicket[]
+  id       Int     @id @default(autoincrement())
+  name     String
+  icon     String?
+  isActive Boolean @default(true)
+
+  tickets MaintenanceTicket[]
 }
+
 model MaintenancePriority {
-id Int @id @default(autoincrement())
-name String
-code String @unique
-sortOrder Int @default(0)
-slaHours Int?
-tickets MaintenanceTicket[]
+  id        Int    @id @default(autoincrement())
+  name      String
+  code      String @unique // CRITICAL | HIGH | MEDIUM | LOW
+  sortOrder Int    @default(0)
+  slaHours  Int? // Délai SLA en heures
+
+  tickets MaintenanceTicket[]
 }
+
 model MaintenanceStatus {
-id Int @id @default(autoincrement())
-name String
-code String @unique
-color String?
-isFinal Boolean @default(false)
-tickets MaintenanceTicket[]
+  id      Int     @id @default(autoincrement())
+  name    String
+  code    String  @unique
+  color   String?
+  isFinal Boolean @default(false)
+
+  tickets MaintenanceTicket[]
 }
+
+// ============================================================
+// TICKET PRINCIPAL
+// ============================================================
+
 model MaintenanceTicket {
-id Int @id @default(autoincrement())
-ticketNumber String @unique
-title String
-description String
-locationId Int
-categoryId Int
-priorityId Int
-statusId Int
+  id           Int    @id @default(autoincrement())
+  ticketNumber String @unique
+  title        String
+  description  String
 
-reportedByUserId Int
-assignedToUserId Int?
-reportedFrom String?
-urgencyLevel Int?
-dueAt DateTime?
-resolvedAt DateTime?
-closedAt DateTime?
-createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
-location Location @relation(fields: [locationId],references: [id])
-category MaintenanceCategory @relation(fields: [categoryId],references: [id])
-priority MaintenancePriority @relation(fields: [priorityId],references: [id])
-status MaintenanceStatus @relation(fields: [statusId],references: [id])
-reportedBy User @relation("ReportedBy", fields: [reportedByUserId],references: [id])
-assignedTo User? @relation("AssignedTo", fields: [assignedToUserId],references: [id])
-comments MaintenanceComment[]
-attachments MaintenanceAttachment[]
-assignments MaintenanceAssignment[]
+  locationId        Int
+  categoryId        Int
+  priorityId        Int
+  statusId          Int
+  reportedByUserId  Int
+  assignedToUserId  Int?
+  validatedByUserId Int?
+
+  reportedFrom String? // mobile | web | reception
+  urgencyLevel Int?
+  progress     Int     @default(0)
+
+  dueAt       DateTime?
+  acceptedAt  DateTime?
+  startedAt   DateTime?
+  pausedAt    DateTime?
+  resolvedAt  DateTime?
+  validatedAt DateTime?
+  closedAt    DateTime?
+
+  resolutionNote String?
+  closureNote    String?
+  pendingReason  String?
+  needHelpReason String?
+
+  timeSpentMinutes Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  location Location            @relation(fields: [locationId], references: [id])
+  category MaintenanceCategory @relation(fields: [categoryId], references: [id])
+  priority MaintenancePriority @relation(fields: [priorityId], references: [id])
+  status   MaintenanceStatus   @relation(fields: [statusId], references: [id])
+
+  reportedBy  User  @relation("ReportedBy", fields: [reportedByUserId], references: [id])
+  assignedTo  User? @relation("AssignedTo", fields: [assignedToUserId], references: [id])
+  validatedBy User? @relation("ValidatedBy", fields: [validatedByUserId], references: [id])
+
+  comments    MaintenanceComment[]
+  attachments MaintenanceAttachment[]
+  assignments MaintenanceAssignment[]
+  events      MaintenanceTicketEvent[]
+  materials   MaintenanceInterventionMaterial[]
 }
+
+// ============================================================
+// COMMENTAIRES
+// ============================================================
+
 model MaintenanceComment {
-id Int @id @default(autoincrement())
-ticketId Int
-userId Int
-comment String
-isInternal Boolean @default(false)
-createdAt DateTime @default(now())
-ticket MaintenanceTicket @relation(fields: [ticketId], references: [id])
-user User @relation(fields: [userId], references: [id])
-}
-model MaintenanceAttachment {
-id Int @id @default(autoincrement())
-ticketId Int
-filePath String
-fileName String
-mimeType String
-fileSize Int
-uploadedByUserId Int
-createdAt DateTime @default(now())
-ticket MaintenanceTicket @relation(fields: [ticketId], references:[id])
-uploadedBy User @relation(fields: [uploadedByUserId],references: [id])
+  id         Int      @id @default(autoincrement())
+  ticketId   Int
+  userId     Int
+  comment    String
+  isInternal Boolean  @default(false)
+  createdAt  DateTime @default(now())
 
+  ticket MaintenanceTicket @relation(fields: [ticketId], references: [id])
+  user   User              @relation(fields: [userId], references: [id])
 }
+
+// ============================================================
+// PIÈCES JOINTES
+// ============================================================
+
+model MaintenanceAttachment {
+  id               Int    @id @default(autoincrement())
+  ticketId         Int
+  filePath         String
+  fileName         String
+  mimeType         String
+  fileSize         Int
+  uploadedByUserId Int
+
+  photoType String? // BEFORE | DURING | AFTER | PROOF
+  caption   String?
+
+  createdAt DateTime @default(now())
+
+  ticket     MaintenanceTicket @relation(fields: [ticketId], references: [id])
+  uploadedBy User              @relation(fields: [uploadedByUserId], references: [id])
+}
+
+// ============================================================
+// ASSIGNATIONS
+// ============================================================
+
 model MaintenanceAssignment {
-id Int @id @default(autoincrement())
-ticketId Int
-assignedToUserId Int
-assignedByUserId Int
-assignedAt DateTime @default(now())
-unassignedAt DateTime?
-note String?
-ticket MaintenanceTicket @relation(fields: [ticketId], references:[id])
-assignedTo User @relation("AssignedTo", fields: [assignedToUserId],references: [id])
-assignedBy User @relation("AssignedBy", fields: [assignedByUserId],references: [id])
+  id               Int       @id @default(autoincrement())
+  ticketId         Int
+  assignedToUserId Int
+  assignedByUserId Int
+  assignedAt       DateTime  @default(now())
+  unassignedAt     DateTime?
+  note             String?
+
+  ticket     MaintenanceTicket @relation(fields: [ticketId], references: [id])
+  assignedTo User              @relation("AssignedTo", fields: [assignedToUserId], references: [id])
+  assignedBy User              @relation("AssignedBy", fields: [assignedByUserId], references: [id])
+}
+
+// ============================================================
+// TIMELINE DES ÉVÉNEMENTS
+// ============================================================
+
+model MaintenanceTicketEvent {
+  id           Int      @id @default(autoincrement())
+  ticketId     Int
+  userId       Int?
+  type         String // CREATED | ASSIGNED | STATUS_CHANGED | RESOLVED | etc.
+  fromStatusId Int?
+  toStatusId   Int?
+  message      String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  ticket MaintenanceTicket @relation(fields: [ticketId], references: [id])
+  user   User?             @relation(fields: [userId], references: [id])
+}
+
+// ============================================================
+// MATÉRIAUX UTILISÉS EN INTERVENTION
+// ============================================================
+
+model MaintenanceInterventionMaterial {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  name      String
+  quantity  Int      @default(1)
+  unit      String?
+  createdAt DateTime @default(now())
+
+  ticket MaintenanceTicket @relation(fields: [ticketId], references: [id])
+}
+
+// ============================================================
+// ÉQUIPES & AGENTS
+// ============================================================
+
+model MaintenanceTeam {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  code        String   @unique
+  description String?
+  color       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  agents MaintenanceAgentProfile[]
+}
+
+model MaintenanceSkill {
+  id       Int     @id @default(autoincrement())
+  name     String  @unique
+  code     String  @unique
+  isActive Boolean @default(true)
+
+  agents MaintenanceAgentSkill[]
+}
+
+model MaintenanceAgentProfile {
+  id                 Int      @id @default(autoincrement())
+  userId             Int      @unique
+  teamId             Int?
+  employeeCode       String?  @unique
+  level              String // JUNIOR | CONFIRMED | SENIOR | EXPERT
+  shift              String // DAY | NIGHT | MORNING | AFTERNOON | ON_CALL
+  availabilityStatus String   @default("AVAILABLE")
+  mainSpecialty      String?
+  canHandleCritical  Boolean  @default(false)
+  maxActiveTickets   Int      @default(5)
+  isOnCall           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user User             @relation(fields: [userId], references: [id])
+  team MaintenanceTeam? @relation(fields: [teamId], references: [id])
+
+  skills MaintenanceAgentSkill[]
+}
+
+model MaintenanceAgentSkill {
+  id             Int @id @default(autoincrement())
+  agentProfileId Int
+  skillId        Int
+  level          Int @default(1)
+
+  agentProfile MaintenanceAgentProfile @relation(fields: [agentProfileId], references: [id])
+  skill        MaintenanceSkill        @relation(fields: [skillId], references: [id])
+
+  @@unique([agentProfileId, skillId])
 }
