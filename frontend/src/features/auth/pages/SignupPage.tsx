@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { authService } from "../services/authService";
+import { authService } from "../api/auth.service";
+import { ROUTES } from "../../../shared/config/routes";
 
-const SignupPage: React.FC = () => {
+const SignupPage = () => {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -10,16 +11,26 @@ const SignupPage: React.FC = () => {
   const [roleId, setRoleId] = useState<number>(1);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [terms, setTerms] = useState(false);
 
+  const [terms, setTerms] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
+  const getErrorMessage = (err: unknown) => {
+    if (typeof err === "object" && err !== null && "response" in err) {
+      const e = err as { response?: { data?: { message?: string } } };
+      return e.response?.data?.message || "Erreur lors de la création du compte";
+    }
+
+    return "Erreur lors de la création du compte";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setError("");
     setSuccess("");
 
@@ -46,14 +57,12 @@ const SignupPage: React.FC = () => {
       });
 
       setSuccess("Compte créé avec succès. Vous pouvez maintenant vous connecter.");
-      setTimeout(() => navigate("/login"), 1200);
-    } catch (err: unknown) {
-      if (typeof err === "object" && err !== null && "response" in err) {
-        const e = err as { response?: { data?: { message?: string } } };
-        setError(e.response?.data?.message || "Erreur lors de la création du compte");
-      } else {
-        setError("Erreur lors de la création du compte");
-      }
+
+      setTimeout(() => {
+        navigate(ROUTES.LOGIN);
+      }, 1200);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -63,13 +72,13 @@ const SignupPage: React.FC = () => {
     <div className="min-h-screen bg-[#f3f5fb] p-4 md:p-6">
       <div className="mx-auto grid min-h-[calc(100vh-2rem)] overflow-hidden rounded-[28px] bg-white shadow-[0_20px_60px_rgba(15,23,42,0.08)] lg:grid-cols-2">
         <aside className="relative hidden overflow-hidden bg-[#13234b] lg:flex">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08),_transparent_40%),linear-gradient(180deg,rgba(8,12,28,0.15)_0%,rgba(8,12,28,0.65)_55%,rgba(8,12,28,0.95)_100%)]" />
           <div className="relative z-10 flex flex-1 flex-col justify-between p-14 text-white">
             <div>
               <div className="mb-16 flex items-center gap-3 text-[17px] font-semibold">
                 <div className="grid h-8 w-8 place-items-center rounded-md border border-white/30">
                   <span className="text-lg leading-none">⌂</span>
                 </div>
+
                 <span>Le Concierge</span>
               </div>
 
@@ -78,23 +87,9 @@ const SignupPage: React.FC = () => {
               </h1>
 
               <p className="mt-8 max-w-[420px] text-lg leading-8 text-white/70">
-                Rejoignez l’élite de l’hôtellerie moderne. Centralisez vos opérations,
-                sublimez l’expérience client et libérez le potentiel de vos équipes.
+                Centralisez vos opérations, améliorez l’expérience client et
+                fluidifiez le travail de vos équipes.
               </p>
-            </div>
-
-            <div className="max-w-[360px] rounded-[22px] border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
-              <div className="mb-4 text-2xl text-[#ffcf99]">★★★★★</div>
-              <p className="text-[18px] leading-8 text-white/85">
-                "Une transformation radicale pour nos équipes. L’interface est intuitive."
-              </p>
-              <div className="mt-5 flex items-center gap-3">
-                <div className="h-11 w-11 rounded-full bg-white/20" />
-                <div>
-                  <div className="font-semibold">Jean-Marc Valery</div>
-                  <div className="text-sm text-white/55">Directeur Général</div>
-                </div>
-              </div>
             </div>
           </div>
         </aside>
@@ -105,8 +100,9 @@ const SignupPage: React.FC = () => {
               <h2 className="text-[44px] font-semibold leading-[1.05] tracking-tight text-[#13234b]">
                 Créer un compte professionnel
               </h2>
+
               <p className="mt-4 text-[16px] leading-7 text-slate-500">
-                Démarrez votre essai gratuit. Aucun paiement requis.
+                Remplissez les informations ci-dessous pour créer un accès.
               </p>
             </div>
 
@@ -128,11 +124,11 @@ const SignupPage: React.FC = () => {
                   <label className="mb-2 block text-[13px] font-semibold uppercase tracking-wide text-[#13234b]">
                     Nom
                   </label>
+
                   <input
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Durand"
                     className="h-[52px] w-full border border-slate-200 px-4 outline-none transition focus:border-[#13234b]"
                     required
                   />
@@ -142,11 +138,11 @@ const SignupPage: React.FC = () => {
                   <label className="mb-2 block text-[13px] font-semibold uppercase tracking-wide text-[#13234b]">
                     Prénom
                   </label>
+
                   <input
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Marc"
                     className="h-[52px] w-full border border-slate-200 px-4 outline-none transition focus:border-[#13234b]"
                     required
                   />
@@ -157,11 +153,11 @@ const SignupPage: React.FC = () => {
                 <label className="mb-2 block text-[13px] font-semibold uppercase tracking-wide text-[#13234b]">
                   Email professionnel
                 </label>
+
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="m.durand@hotel-luxe.fr"
                   className="h-[52px] w-full border border-slate-200 px-4 outline-none transition focus:border-[#13234b]"
                   required
                 />
@@ -171,11 +167,11 @@ const SignupPage: React.FC = () => {
                 <label className="mb-2 block text-[13px] font-semibold uppercase tracking-wide text-[#13234b]">
                   Téléphone
                 </label>
+
                 <input
                   type="tel"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+216 xx xxx xxx"
                   className="h-[52px] w-full border border-slate-200 px-4 outline-none transition focus:border-[#13234b]"
                 />
               </div>
@@ -184,6 +180,7 @@ const SignupPage: React.FC = () => {
                 <label className="mb-2 block text-[13px] font-semibold uppercase tracking-wide text-[#13234b]">
                   Rôle
                 </label>
+
                 <select
                   value={roleId}
                   onChange={(e) => setRoleId(Number(e.target.value))}
@@ -202,6 +199,7 @@ const SignupPage: React.FC = () => {
                   <label className="mb-2 block text-[13px] font-semibold uppercase tracking-wide text-[#13234b]">
                     Mot de passe
                   </label>
+
                   <input
                     type="password"
                     value={password}
@@ -215,6 +213,7 @@ const SignupPage: React.FC = () => {
                   <label className="mb-2 block text-[13px] font-semibold uppercase tracking-wide text-[#13234b]">
                     Confirmation
                   </label>
+
                   <input
                     type="password"
                     value={confirmPassword}
@@ -232,8 +231,10 @@ const SignupPage: React.FC = () => {
                   onChange={(e) => setTerms(e.target.checked)}
                   className="mt-1 h-4 w-4 rounded border-slate-300"
                 />
+
                 <span>
-                  J’accepte les Conditions Générales et la Politique de Confidentialité.
+                  J’accepte les Conditions Générales et la Politique de
+                  Confidentialité.
                 </span>
               </label>
 
@@ -248,7 +249,10 @@ const SignupPage: React.FC = () => {
 
             <p className="mt-10 text-center text-[15px] text-slate-500">
               Déjà un compte ?{" "}
-              <Link to="/login" className="font-semibold text-[#13234b] hover:underline">
+              <Link
+                to={ROUTES.LOGIN}
+                className="font-semibold text-[#13234b] hover:underline"
+              >
                 Se connecter
               </Link>
             </p>
