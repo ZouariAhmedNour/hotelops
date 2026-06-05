@@ -1,24 +1,34 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+
 import LoginPage from "../../features/auth/pages/LoginPage";
 import SignupPage from "../../features/auth/pages/SignupPage";
+
 import DashboardPage from "../../features/dashboard/pages/DashboardPage";
-import { ROUTES } from "../../shared/config/routes";
-import ProtectedRoute from "./ProtectedRoute";
-import AppLayout from "../../shared/components/layout/AppLayout";
-import RoleGuard from "./RoleGuard";
-import { ROLES } from "../../shared/config/roles";
+
 import TicketListPage from "../../features/maintenance/pages/TicketListPage";
 import TicketCreatePage from "../../features/maintenance/pages/TicketCreatePage";
 import TicketDetailPage from "../../features/maintenance/pages/TicketDetailPage";
+
 import HousekeepingPage from "../../features/housekeeping/pages/HousekeepingPage";
 import StockPage from "../../features/stock/pages/StockPage";
 import FinancePage from "../../features/finance/pages/FinancePage";
 import ReportsPage from "../../features/reports/pages/ReportsPage";
 import UsersPage from "../../features/users/pages/UsersPage";
+
 import MaintenanceStaffPage from "../../features/maintenance-staff/pages/MaintenanceStaffPage";
+import MaintenanceStaffStatsPage from "../../features/maintenance-staff/pages/MaintenanceStaffStatsPage";
+import MaintenanceTeamsPage from "../../features/maintenance-staff/pages/MaintenanceTeamsPage";
+import MaintenanceSkillsPage from "../../features/maintenance-staff/pages/MaintenanceSkillsPage";
+import AgentCreatePage from "../../features/maintenance-staff/pages/AgentCreatePage";
+import AgentListPage from "../../features/maintenance-staff/pages/AgentListPage";
+import AgentDetailPage from "../../features/maintenance-staff/pages/AgentDetailPage";
 
+import { ROUTES } from "../../shared/config/routes";
+import { ROLES } from "../../shared/config/roles";
 
-
+import ProtectedRoute from "./ProtectedRoute";
+import RoleGuard from "./RoleGuard";
+import AppLayout from "../../shared/components/layout/AppLayout";
 
 const AppRouter = () => {
   return (
@@ -53,7 +63,11 @@ const AppRouter = () => {
             <Route
               element={
                 <RoleGuard
-                  allowedRoles={[ROLES.ADMIN, ROLES.RECEPTION, ROLES.HOUSEKEEPING]}
+                  allowedRoles={[
+                    ROLES.ADMIN,
+                    ROLES.RECEPTION,
+                    ROLES.HOUSEKEEPING,
+                  ]}
                 />
               }
             >
@@ -88,19 +102,46 @@ const AppRouter = () => {
 
             <Route element={<RoleGuard allowedRoles={[ROLES.ADMIN]} />}>
               <Route path={ROUTES.USERS} element={<UsersPage />} />
+
+              <Route
+                path={ROUTES.MAINTENANCE_STAFF}
+                element={<MaintenanceStaffPage />}
+              />
+
+              <Route
+                path={ROUTES.MAINTENANCE_STAFF_STATS}
+                element={<MaintenanceStaffStatsPage />}
+              />
+
+              <Route
+                path={ROUTES.MAINTENANCE_STAFF_TEAMS}
+                element={<MaintenanceTeamsPage />}
+              />
+
+              <Route
+                path={ROUTES.MAINTENANCE_STAFF_SKILLS}
+                element={<MaintenanceSkillsPage />}
+              />
+
+              <Route
+                path={ROUTES.MAINTENANCE_STAFF_AGENT_CREATE}
+                element={<AgentCreatePage />}
+              />
+
+              <Route
+                path={ROUTES.MAINTENANCE_STAFF_AGENTS}
+                element={<AgentListPage />}
+              />
+
+              <Route
+                path={ROUTES.MAINTENANCE_STAFF_AGENT_DETAIL}
+                element={<AgentDetailPage />}
+              />
             </Route>
           </Route>
         </Route>
 
         <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
-
-        <Route element={<RoleGuard allowedRoles={[ROLES.ADMIN]} />}>
-  <Route path={ROUTES.USERS} element={<UsersPage />} />
-  <Route
-    path={ROUTES.MAINTENANCE_STAFF}
-    element={<MaintenanceStaffPage />}
-  />
-</Route>
       </Routes>
     </BrowserRouter>
   );

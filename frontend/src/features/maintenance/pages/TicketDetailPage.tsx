@@ -5,13 +5,35 @@ import Card from "../../../shared/components/ui/Card";
 import { useTicket } from "../hooks/useTicket";
 import TicketStatusBadge from "../components/TicketStatusBadge";
 import { formatDateTime } from "../../../shared/utils/date";
+import AgentRecommendations from "../../maintenance-staff/components/AgentRecommendations";
+import { ticketService } from "../api/ticket.service";
+import { useState } from "react";
 
 const TicketDetailPage = () => {
   const { id } = useParams();
 
   const ticketId = id ? Number(id) : undefined;
 
-  const { ticket, loading, error } = useTicket(ticketId);
+  const { ticket, loading, error, refetch } = useTicket(ticketId);
+  const [assignMessage, setAssignMessage] = useState("");
+  const [assignError, setAssignError] = useState("");
+
+  const handleAssignAgent = async (agentUserId: number) => {
+    if (!ticket) return;
+
+    try {
+      setAssignMessage("");
+      setAssignError("");
+
+      await ticketService.assign(ticket.id, agentUserId);
+      setAssignMessage("Ticket assigné avec succès.");
+
+      await refetch();
+    } catch (err) {
+      console.error(err);
+      setAssignError("Impossible d’assigner ce ticket à cet agent.");
+    }
+  };
 
   if (loading) return <LoadingState label="Chargement du ticket..." />;
 
@@ -46,42 +68,86 @@ const TicketDetailPage = () => {
         <TicketStatusBadge status={ticket.status} />
       </div>
 
-      <Card className="p-6">
-        <h2 className="text-2xl font-semibold text-[#13234b]">Description</h2>
+      {assignMessage && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {assignMessage}
+        </div>
+      )}
 
-        <p className="mt-4 leading-7 text-slate-600">{ticket.description}</p>
-      </Card>
+      {assignError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {assignError}
+        </div>
+      )}
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="p-5">
-          <p className="text-sm uppercase tracking-[0.18em] text-slate-400">
-            Localisation
-          </p>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="space-y-6">
+          <Card className="p-6">
+            <h2 className="text-2xl font-semibold text-[#13234b]">
+              Description
+            </h2>
 
-          <p className="mt-3 text-lg font-semibold text-slate-900">
-            {ticket.location.name}
-          </p>
-        </Card>
+            <p className="mt-4 leading-7 text-slate-600">
+              {ticket.description}
+            </p>
+          </Card>
 
-        <Card className="p-5">
-          <p className="text-sm uppercase tracking-[0.18em] text-slate-400">
-            Catégorie
-          </p>
+          <div className="grid gap-6 md:grid-cols-3">
+            <Card className="p-5">
+              <p className="text-sm uppercase tracking-[0.18em] text-slate-400">
+                Localisation
+              </p>
 
-          <p className="mt-3 text-lg font-semibold text-slate-900">
-            {ticket.category.name}
-          </p>
-        </Card>
+              <p className="mt-3 text-lg font-semibold text-slate-900">
+                {ticket.location.name}
+              </p>
+            </Card>
 
-        <Card className="p-5">
-          <p className="text-sm uppercase tracking-[0.18em] text-slate-400">
-            Priorité
-          </p>
+            <Card className="p-5">
+              <p className="text-sm uppercase tracking-[0.18em] text-slate-400">
+                Catégorie
+              </p>
 
-          <p className="mt-3 text-lg font-semibold text-slate-900">
-            {ticket.priority.name}
-          </p>
-        </Card>
+              <p className="mt-3 text-lg font-semibold text-slate-900">
+                {ticket.category.name}
+              </p>
+            </Card>
+
+            <Card className="p-5">
+              <p className="text-sm uppercase tracking-[0.18em] text-slate-400">
+                Priorité
+              </p>
+
+              <p className="mt-3 text-lg font-semibold text-slate-900">
+                {ticket.priority.name}
+              </p>
+            </Card>
+          </div>
+
+          <Card className="p-6">
+            <h2 className="text-2xl font-semibold text-[#13234b]">
+              Assignation actuelle
+            </h2>
+
+            <p className="mt-4 text-slate-600">
+              {ticket.assignedTo ? (
+                <>
+                  Assigné à{" "}
+                  <span className="font-semibold text-slate-900">
+                    {ticket.assignedTo.firstName} {ticket.assignedTo.lastName}
+                  </span>
+                </>
+              ) : (
+                "Ce ticket n’est pas encore assigné."
+              )}
+            </p>
+          </Card>
+        </div>
+
+        <AgentRecommendations
+          ticketId={ticket.id}
+          onAssign={handleAssignAgent}
+        />
       </div>
     </div>
   );

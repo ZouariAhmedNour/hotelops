@@ -32,34 +32,74 @@ export const agentService = {
   },
 
   getById: async (id: number) => {
-    const agent = await prisma.maintenanceAgentProfile.findUnique({
-      where: { id },
-      include: {
-        user: {
-          include: {
-            role: true,
-          },
-        },
-        team: true,
-        skills: {
-          include: {
-            skill: true,
+  const agent = await prisma.maintenanceAgentProfile.findUnique({
+    where: { id },
+    include: {
+      user: {
+        include: {
+          role: true,
+          assignedTickets: {
+            orderBy: {
+              createdAt: "desc",
+            },
+            include: {
+              location: true,
+              category: true,
+              priority: true,
+              status: true,
+              reportedBy: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
+              },
+              assignedTo: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
+              },
+            },
           },
         },
       },
-    });
+      team: true,
+      skills: {
+        include: {
+          skill: true,
+        },
+      },
+    },
+  });
 
-    if (!agent) {
-      const err = new Error("Agent introuvable") as any;
-      err.statusCode = 404;
-      throw err;
-    }
+  if (!agent) {
+    const err = new Error("Agent introuvable") as any;
+    err.statusCode = 404;
+    throw err;
+  }
 
-    return {
-      ...agent,
-      user: sanitizeUser(agent.user),
-    };
-  },
+  const activeTicketsCount = agent.user.assignedTickets.filter(
+    (ticket) => !ticket.status.isFinal
+  ).length;
+
+  const resolvedTicketsCount = agent.user.assignedTickets.filter((ticket) =>
+    ["RESOLVED", "CLOSED"].includes(ticket.status.code)
+  ).length;
+
+  const { passwordHash, assignedTickets, ...safeUser } = agent.user;
+
+  return {
+    ...agent,
+    user: safeUser,
+    assignedTickets,
+    activeTicketsCount,
+    resolvedTicketsCount,
+  };
+},
 
   create: async (body: {
     firstName: string;
