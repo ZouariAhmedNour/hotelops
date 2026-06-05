@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ticketService } from "../api/ticket.service";
 import type {
   MaintenanceTicket,
@@ -6,36 +6,69 @@ import type {
 } from "../types/maintenance.types";
 import type { PaginatedResponse } from "../../../shared/types/api.types";
 
+interface TicketsState {
+  data: PaginatedResponse<MaintenanceTicket> | null;
+  error: string;
+  requestKey: string;
+}
+
 export const useTickets = (filters: TicketFilters) => {
-  const [data, setData] =
-    useState<PaginatedResponse<MaintenanceTicket> | null>(null);
+  const requestKey = useMemo(() => JSON.stringify(filters), [filters]);
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [state, setState] = useState<TicketsState>({
+    data: null,
+    error: "",
+    requestKey: "",
+  });
 
-  const fetchTickets = async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const fetchTickets = useCallback(async () => {
+    const result = await ticketService.list(filters);
 
-      const result = await ticketService.list(filters);
-      setData(result);
-    } catch (err) {
-      console.error(err);
-      setError("Impossible de charger les tickets");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setState({
+      data: result,
+      error: "",
+      requestKey,
+    });
+  }, [filters, requestKey]);
 
   useEffect(() => {
-    fetchTickets();
-  }, [JSON.stringify(filters)]);
+    let ignore = false;
+
+    const run = async () => {
+      try {
+        const result = await ticketService.list(filters);
+
+        if (!ignore) {
+          setState({
+            data: result,
+            error: "",
+            requestKey,
+          });
+        }
+      } catch (err) {
+        console.error(err);
+
+        if (!ignore) {
+          setState({
+            data: null,
+            error: "Impossible de charger les tickets",
+            requestKey,
+          });
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      ignore = true;
+    };
+  }, [filters, requestKey]);
 
   return {
-    data,
-    loading,
-    error,
+    data: state.data,
+    loading: state.requestKey !== requestKey,
+    error: state.error,
     refetch: fetchTickets,
   };
 };

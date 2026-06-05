@@ -13,4 +13,7 @@ export const ROUTES = {
   STOCKS: "/stocks",
   FINANCE: "/finance",
   REPORTS: "/reports",
+
+  MAINTENANCE_STAFF: "/maintenance/staff",
+
 } as const;

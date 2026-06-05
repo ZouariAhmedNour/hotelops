@@ -12,6 +12,9 @@ import priorityRoutes from './routes/priorityRoutes';
 import locationRoutes from './routes/locationRoutes';
 import categoryRoutes from './routes/categoryRoutes';
 
+import maintenanceTeamRoutes from "./routes/maintenanceTeamRoutes";
+import maintenanceSkillRoutes from "./routes/maintenanceSkillRoutes";
+import agentRoutes from "./routes/agentRoutes";
 
 const app = express();
 
@@ -32,6 +35,10 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/priorities',priorityRoutes);
 app.use('/api/categories', categoryRoutes);
+
+app.use("/api/maintenance-teams", maintenanceTeamRoutes);
+app.use("/api/maintenance-skills", maintenanceSkillRoutes);
+app.use("/api/agents", agentRoutes);
 
 // Error handler (toujours en dernier)
 app.use(errorHandler);

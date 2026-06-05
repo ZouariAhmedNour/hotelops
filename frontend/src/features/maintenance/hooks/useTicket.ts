@@ -1,37 +1,72 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ticketService } from "../api/ticket.service";
 import type { MaintenanceTicket } from "../types/maintenance.types";
 
-export const useTicket = (id?: number) => {
-  const [ticket, setTicket] = useState<MaintenanceTicket | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+interface TicketState {
+  ticket: MaintenanceTicket | null;
+  error: string;
+  loadedId?: number;
+}
 
-  const fetchTicket = async () => {
+export const useTicket = (id?: number) => {
+  const [state, setState] = useState<TicketState>({
+    ticket: null,
+    error: "",
+    loadedId: undefined,
+  });
+
+  const fetchTicket = useCallback(async () => {
     if (!id) return;
 
-    try {
-      setLoading(true);
-      setError("");
+    const data = await ticketService.getById(id);
 
-      const data = await ticketService.getById(id);
-      setTicket(data);
-    } catch (err) {
-      console.error(err);
-      setError("Impossible de charger le ticket");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setState({
+      ticket: data,
+      error: "",
+      loadedId: id,
+    });
+  }, [id]);
 
   useEffect(() => {
-    fetchTicket();
+    if (!id) return;
+
+    let ignore = false;
+
+    const run = async () => {
+      try {
+        const data = await ticketService.getById(id);
+
+        if (!ignore) {
+          setState({
+            ticket: data,
+            error: "",
+            loadedId: id,
+          });
+        }
+      } catch (err) {
+        console.error(err);
+
+        if (!ignore) {
+          setState({
+            ticket: null,
+            error: "Impossible de charger le ticket",
+            loadedId: id,
+          });
+        }
+      }
+    };
+
+    void run();
+
+    return () => {
+      ignore = true;
+    };
   }, [id]);
 
   return {
-    ticket,
-    loading,
-    error,
+    ticket: state.ticket,
+    loading: Boolean(id) && state.loadedId !== id,
+    error: state.error,
     refetch: fetchTicket,
   };
 };

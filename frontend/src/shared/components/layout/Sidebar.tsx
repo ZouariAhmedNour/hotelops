@@ -2,7 +2,7 @@ import { BedDouble } from "lucide-react";
 import { NAVIGATION_ITEMS } from "../../config/navigation";
 import SidebarNavItem from "./SidebarNavItem";
 import { useAuth } from "../../../features/auth/contexts/useAuth";
-import type { RoleCode } from "../../config/roles";
+import { hasRole } from "../../utils/permissions";
 
 const Sidebar = () => {
   const { user } = useAuth();
@@ -89,7 +89,3 @@ const Sidebar = () => {
 };
 
 export default Sidebar;
-
-function hasRole(roleCode: string | undefined, allowedRoles: RoleCode[]): unknown {
-  throw new Error("Function not implemented.");
-}

@@ -1,5 +1,8 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../../features/auth/contexts/useAuth";
+import type { RoleCode } from "../../shared/config/roles";
+import { ROUTES } from "../../shared/config/routes";
+import { hasRole } from "../../shared/utils/permissions";
 
 
 interface RoleGuardProps {

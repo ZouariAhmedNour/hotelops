@@ -7,6 +7,7 @@ import {
   Wallet,
   Users,
   BarChart3,
+  UserCog,
 } from "lucide-react";
 
 import { ROUTES } from "./routes";
@@ -84,4 +85,11 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     section: "administration",
     allowedRoles: [ROLES.ADMIN, ROLES.CHEF_MAINT, ROLES.FINANCE],
   },
+  {
+  label: "Équipes & Agents",
+  path: ROUTES.MAINTENANCE_STAFF,
+  icon: UserCog,
+  section: "administration",
+  allowedRoles: [ROLES.ADMIN],
+},
 ];

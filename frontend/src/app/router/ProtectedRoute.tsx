@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import Spinner from "../../shared/components/ui/Spinner";
 import { useAuth } from "../../features/auth/contexts/useAuth";
+import { ROUTES } from "../../shared/config/routes";
 
 const ProtectedRoute = () => {
   const { isAuthenticated, isLoading } = useAuth();

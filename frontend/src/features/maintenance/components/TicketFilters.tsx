@@ -1,11 +1,11 @@
-import type { TicketFilters } from "../types/maintenance.types";
+import type { TicketFilters as TicketFiltersType } from "../types/maintenance.types";
 
-interface TicketFiltersProps {
-  filters: TicketFilters;
-  onChange: (filters: TicketFilters) => void;
+interface TicketFiltersPanelProps {
+  filters: TicketFiltersType;
+  onChange: (filters: TicketFiltersType) => void;
 }
 
-const TicketFilters = ({ filters, onChange }: TicketFiltersProps) => {
+const TicketFiltersPanel = ({ filters, onChange }: TicketFiltersPanelProps) => {
   return (
     <div className="rounded-3xl bg-white p-4 shadow-[0_2px_20px_rgba(15,23,42,0.06)]">
       <input
@@ -25,4 +25,4 @@ const TicketFilters = ({ filters, onChange }: TicketFiltersProps) => {
   );
 };
 
-export default TicketFilters;
+export default TicketFiltersPanel;
