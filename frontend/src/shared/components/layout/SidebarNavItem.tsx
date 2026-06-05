@@ -17,9 +17,15 @@ const SidebarNavItem = ({ item, roleCode }: SidebarNavItemProps) => {
   const Icon = item.icon;
   const hasChildren = Boolean(item.children?.length);
 
-  const childIsActive = item.children?.some((child) =>
-    location.pathname.startsWith(child.path)
-  );
+  const childIsActive = item.children?.some((child) => {
+    if (child.path === location.pathname) return true;
+
+    // On évite que "/maintenance/staff/agents"
+    // soit actif quand on est sur "/maintenance/staff/agents/new"
+    if (child.path.endsWith("/agents")) return false;
+
+    return location.pathname.startsWith(`${child.path}/`);
+  });
 
   const [open, setOpen] = useState(Boolean(childIsActive));
 
@@ -78,6 +84,7 @@ const SidebarNavItem = ({ item, roleCode }: SidebarNavItemProps) => {
             <NavLink
               key={child.path}
               to={child.path}
+              end
               className={({ isActive }) =>
                 [
                   "block rounded-xl px-4 py-2 text-sm font-medium transition",
