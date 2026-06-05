@@ -15,12 +15,19 @@ import { ROLES, type RoleCode } from "./roles";
 
 export type NavigationSection = "operations" | "administration";
 
+export interface NavigationChildItem {
+  label: string;
+  path: string;
+  allowedRoles: RoleCode[];
+}
+
 export interface NavigationItem {
   label: string;
   path: string;
   icon: ElementType;
   section: NavigationSection;
   allowedRoles: RoleCode[];
+  children?: NavigationChildItem[];
 }
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
@@ -79,17 +86,44 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     allowedRoles: [ROLES.ADMIN],
   },
   {
+    label: "Équipes & Agents",
+    path: ROUTES.MAINTENANCE_STAFF,
+    icon: UserCog,
+    section: "administration",
+    allowedRoles: [ROLES.ADMIN],
+    children: [
+      {
+        label: "Statistiques",
+        path: ROUTES.MAINTENANCE_STAFF_STATS,
+        allowedRoles: [ROLES.ADMIN],
+      },
+      {
+        label: "Équipes",
+        path: ROUTES.MAINTENANCE_STAFF_TEAMS,
+        allowedRoles: [ROLES.ADMIN],
+      },
+      {
+        label: "Compétences",
+        path: ROUTES.MAINTENANCE_STAFF_SKILLS,
+        allowedRoles: [ROLES.ADMIN],
+      },
+      {
+        label: "Créer agent",
+        path: ROUTES.MAINTENANCE_STAFF_AGENT_CREATE,
+        allowedRoles: [ROLES.ADMIN],
+      },
+      {
+        label: "Liste agents",
+        path: ROUTES.MAINTENANCE_STAFF_AGENTS,
+        allowedRoles: [ROLES.ADMIN],
+      },
+    ],
+  },
+  {
     label: "Rapports",
     path: ROUTES.REPORTS,
     icon: BarChart3,
     section: "administration",
     allowedRoles: [ROLES.ADMIN, ROLES.CHEF_MAINT, ROLES.FINANCE],
   },
-  {
-  label: "Équipes & Agents",
-  path: ROUTES.MAINTENANCE_STAFF,
-  icon: UserCog,
-  section: "administration",
-  allowedRoles: [ROLES.ADMIN],
-},
 ];

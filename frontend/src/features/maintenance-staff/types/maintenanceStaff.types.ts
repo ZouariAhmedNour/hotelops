@@ -1,3 +1,4 @@
+import type { MaintenanceTicket } from "../../maintenance/types/maintenance.types";
 import type { User } from "../../../shared/types/auth.types";
 
 export interface MaintenanceTeam {
@@ -69,6 +70,10 @@ export interface MaintenanceAgentProfile {
   user: User;
   team?: MaintenanceTeam | null;
   skills: MaintenanceAgentSkill[];
+
+  assignedTickets?: MaintenanceTicket[];
+  activeTicketsCount?: number;
+  resolvedTicketsCount?: number;
 }
 
 export interface CreateTeamPayload {
@@ -136,8 +141,34 @@ export interface UpdateAgentPayload {
   skillIds?: number[];
 }
 
+export interface RecommendationAgentUser {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface RecommendationAgent {
+  id: number;
+  userId: number;
+  teamId?: number | null;
+  employeeCode?: string | null;
+  level: MaintenanceAgentLevel | string;
+  shift: MaintenanceAgentShift | string;
+  availabilityStatus: string;
+  mainSpecialty?: string | null;
+  canHandleCritical: boolean;
+  maxActiveTickets: number;
+  isOnCall: boolean;
+  createdAt: string;
+  updatedAt: string;
+  user: RecommendationAgentUser;
+  team?: MaintenanceTeam | null;
+  skills: MaintenanceAgentSkill[];
+}
+
 export interface AgentRecommendation {
-  agent: MaintenanceAgentProfile;
+  agent: RecommendationAgent;
   score: number;
   reasons: string[];
   activeTicketsCount: number;

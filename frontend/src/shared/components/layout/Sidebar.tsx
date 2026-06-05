@@ -1,8 +1,8 @@
 import { BedDouble } from "lucide-react";
-import { NAVIGATION_ITEMS } from "../../config/navigation";
-import SidebarNavItem from "./SidebarNavItem";
 import { useAuth } from "../../../features/auth/contexts/useAuth";
+import { NAVIGATION_ITEMS } from "../../config/navigation";
 import { hasRole } from "../../utils/permissions";
+import SidebarNavItem from "./SidebarNavItem";
 
 const Sidebar = () => {
   const { user } = useAuth();
@@ -49,7 +49,11 @@ const Sidebar = () => {
 
           <nav className="mt-4 space-y-2 px-4">
             {operationItems.map((item) => (
-              <SidebarNavItem key={item.path} item={item} />
+              <SidebarNavItem
+                key={item.path}
+                item={item}
+                roleCode={roleCode}
+              />
             ))}
           </nav>
         </>
@@ -65,7 +69,11 @@ const Sidebar = () => {
 
           <nav className="mt-4 flex-1 space-y-2 px-4">
             {administrationItems.map((item) => (
-              <SidebarNavItem key={item.path} item={item} />
+              <SidebarNavItem
+                key={item.path}
+                item={item}
+                roleCode={roleCode}
+              />
             ))}
           </nav>
         </>
