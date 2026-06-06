@@ -409,15 +409,38 @@ export const agentService = {
           reasons.push("Disponible");
         }
 
-        if (
-          category &&
-          agent.mainSpecialty
-            ?.toLowerCase()
-            .includes(category.name.toLowerCase())
-        ) {
-          score += 40;
-          reasons.push("Spécialité compatible");
-        }
+        const normalizeText = (value?: string | null) => {
+  return (value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+};
+
+const categoryName = normalizeText(category?.name);
+const mainSpecialty = normalizeText(agent.mainSpecialty);
+
+const hasMatchingMainSpecialty =
+  Boolean(categoryName) && Boolean(mainSpecialty) && mainSpecialty.includes(categoryName);
+
+const hasMatchingSkill =
+  Boolean(categoryName) &&
+  agent.skills.some((item) =>
+    normalizeText(item.skill.name).includes(categoryName)
+  );
+
+const hasMatchingTeam =
+  Boolean(categoryName) &&
+  agent.team &&
+  normalizeText(agent.team.name).includes(categoryName);
+
+if (hasMatchingMainSpecialty || hasMatchingSkill || hasMatchingTeam) {
+  score += 60;
+  reasons.push("Spécialité compatible");
+} else if (categoryName) {
+  score -= 25;
+  reasons.push("Spécialité différente");
+}
 
         const loadPct =
           agent.maxActiveTickets > 0
