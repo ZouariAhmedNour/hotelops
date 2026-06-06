@@ -1,105 +1,406 @@
+import { Link } from "react-router-dom";
+import { useCallback, useEffect, useState } from "react";
+
 import Button from "../../../shared/components/ui/Button";
 import Card from "../../../shared/components/ui/Card";
+import LoadingState from "../../../shared/components/feedback/LoadingState";
+import ErrorState from "../../../shared/components/feedback/ErrorState";
 import { useAuth } from "../../auth/contexts/useAuth";
-import StatCard from "../components/StatCard";
+
+import { ticketService } from "../../maintenance/api/ticket.service";
+import type {
+  MaintenanceTicket,
+  TicketStatsOverview,
+} from "../../maintenance/types/maintenance.types";
+
+import TicketStatusBadge from "../../maintenance/components/TicketStatusBadge";
+import { formatDateTime } from "../../../shared/utils/date";
+
+interface DashboardState {
+  stats: TicketStatsOverview | null;
+  unassignedTickets: MaintenanceTicket[];
+  criticalTickets: MaintenanceTicket[];
+  recentTickets: MaintenanceTicket[];
+  error: string;
+  loaded: boolean;
+}
+
+const initialState: DashboardState = {
+  stats: null,
+  unassignedTickets: [],
+  criticalTickets: [],
+  recentTickets: [],
+  error: "",
+  loaded: false,
+};
 
 const MaintenanceDashboardPage = () => {
   const { user } = useAuth();
 
+  const [state, setState] = useState<DashboardState>(initialState);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setRefreshing(true);
+
+      const [statsData, unassignedData, criticalData, recentData] =
+        await Promise.all([
+          ticketService.statsOverview(),
+
+          ticketService.list({
+            page: 1,
+            limit: 5,
+            unassignedOnly: true,
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          }),
+
+          ticketService.list({
+            page: 1,
+            limit: 5,
+            priorityCode: "CRITICAL",
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          }),
+
+          ticketService.list({
+            page: 1,
+            limit: 8,
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          }),
+        ]);
+
+      setState({
+        stats: statsData,
+        unassignedTickets: unassignedData.data,
+        criticalTickets: criticalData.data,
+        recentTickets: recentData.data,
+        error: "",
+        loaded: true,
+      });
+    } catch (err) {
+      console.error(err);
+
+      setState((previous) => ({
+        ...previous,
+        error: "Impossible de charger le dashboard maintenance.",
+        loaded: true,
+      }));
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+useEffect(() => {
+  const timer = window.setTimeout(() => {
+    void fetchDashboardData();
+  }, 0);
+
+  return () => {
+    window.clearTimeout(timer);
+  };
+}, [fetchDashboardData]);
+
+  if (!state.loaded) {
+    return <LoadingState label="Chargement du dashboard maintenance..." />;
+  }
+
+  if (state.error) {
+    return <ErrorState message={state.error} />;
+  }
+
+  const stats = state.stats;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
             Opérations & Maintenance
           </p>
 
-          <p className="mt-2 text-slate-500">Bonjour, {user?.firstName}</p>
+          <p className="mt-2 text-slate-500">
+            Bonjour, {user?.firstName}. Inspectez les tickets et assignez-les aux
+            agents disponibles.
+          </p>
 
           <h1 className="mt-2 text-5xl font-semibold tracking-tight text-[#13234b]">
-            Tableau de Bord
+            Tableau de bord maintenance
           </h1>
         </div>
 
         <div className="flex gap-3">
-          <Button variant="secondary" className="rounded-full px-5 py-3">
-            Filtres avancés
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void fetchDashboardData()}
+            disabled={refreshing}
+            className="rounded-full bg-white px-5 py-3 text-sm shadow-sm"
+          >
+            {refreshing ? "Actualisation..." : "Actualiser"}
           </Button>
 
-          <Button className="rounded-full px-5 py-3">+ Créer un ticket</Button>
+          <Link to="/tickets">
+            <Button className="rounded-full px-5 py-3 text-sm">
+              Tous les tickets
+            </Button>
+          </Link>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Total tickets" value="124" helper="+12% vs mois dernier" />
-        <StatCard label="Critiques" value="08" variant="danger" helper="Action immédiate" />
-        <StatCard label="En retard" value="14" variant="warning" helper="Action requise" />
-        <StatCard label="Hors service" value="03" helper="Chambres impactées" />
-        <StatCard label="Préventifs" value="22" helper="Planifiés cette semaine" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+        <DashboardStatCard label="Total" value={stats?.total ?? 0} />
+
+        <DashboardStatCard
+          label="Nouveaux"
+          value={stats?.new ?? 0}
+          className="text-blue-700"
+        />
+
+        <DashboardStatCard
+          label="Assignés"
+          value={stats?.assigned ?? 0}
+          className="text-amber-700"
+        />
+
+        <DashboardStatCard
+          label="En cours"
+          value={stats?.inProgress ?? 0}
+          className="text-indigo-700"
+        />
+
+        <DashboardStatCard
+          label="Critiques"
+          value={stats?.critical ?? 0}
+          className="text-red-700"
+          cardClassName="border-b-4 border-red-500 bg-red-50"
+        />
+
+        <DashboardStatCard
+          label="En retard"
+          value={stats?.overdue ?? 0}
+          className="text-orange-700"
+          cardClassName="border-b-4 border-orange-500"
+        />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className="grid gap-6 xl:grid-cols-2">
         <Card className="p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold text-[#13234b]">
-              Évolution hebdomadaire
-            </h2>
+          <DashboardSectionHeader
+            title="Tickets non assignés"
+            description="Ces tickets doivent être inspectés puis assignés à un agent."
+            link="/tickets?unassignedOnly=true"
+          />
 
-            <span className="text-sm text-slate-400">7 derniers jours</span>
+          <div className="mt-6 space-y-3">
+            {state.unassignedTickets.length === 0 ? (
+              <EmptyBox message="Aucun ticket non assigné." />
+            ) : (
+              state.unassignedTickets.map((ticket) => (
+                <TicketMiniRow key={ticket.id} ticket={ticket} />
+              ))
+            )}
           </div>
-
-          <div className="mt-10 h-[340px] rounded-[28px] border border-dashed border-slate-200 bg-slate-50/40" />
         </Card>
 
         <Card className="p-6">
-          <h2 className="text-2xl font-semibold text-[#13234b]">
-            Pannes par type
-          </h2>
+          <DashboardSectionHeader
+            title="Tickets critiques"
+            description="Priorité immédiate pour le chef maintenance."
+            link="/tickets?priorityCode=CRITICAL"
+          />
 
-          <div className="mt-10 flex items-center justify-center">
-            <div className="flex h-40 w-40 items-center justify-center rounded-full border-[14px] border-slate-200">
-              <div className="text-center">
-                <p className="text-3xl font-semibold text-[#13234b]">64%</p>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  Technique
-                </p>
-              </div>
-            </div>
+          <div className="mt-6 space-y-3">
+            {state.criticalTickets.length === 0 ? (
+              <EmptyBox message="Aucun ticket critique." />
+            ) : (
+              state.criticalTickets.map((ticket) => (
+                <TicketMiniRow key={ticket.id} ticket={ticket} />
+              ))
+            )}
           </div>
         </Card>
       </div>
 
       <Card className="p-6">
-        <h2 className="mb-5 text-3xl font-semibold text-[#13234b]">
-          Gestion des interventions
-        </h2>
+        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-3xl font-semibold text-[#13234b]">
+              Tickets récents
+            </h2>
 
-        <div className="grid gap-6 xl:grid-cols-4">
-          {["Nouveau", "Assigné", "En cours", "En attente"].map((column) => (
-            <div key={column} className="rounded-2xl bg-slate-50 p-4">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="font-semibold text-[#13234b]">{column}</h3>
-                <span className="rounded-full bg-white px-2 py-0.5 text-xs text-slate-500">
-                  2
-                </span>
-              </div>
+            <p className="mt-1 text-sm text-slate-500">
+              Cliquez sur Inspecter pour ouvrir le ticket et choisir un agent
+              recommandé.
+            </p>
+          </div>
 
-              <div className="rounded-2xl border border-slate-100 bg-white p-4">
-                <span className="rounded-md bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-600">
-                  URGENT
-                </span>
+          <Link to="/tickets">
+            <Button variant="secondary" className="rounded-full bg-white px-5 py-3">
+              Liste complète
+            </Button>
+          </Link>
+        </div>
 
-                <p className="mt-3 text-sm font-semibold text-slate-900">
-                  Fuite d'eau importante - Chambre 304
-                </p>
-
-                <p className="mt-2 text-xs text-slate-500">Il y a 15 min</p>
-              </div>
-            </div>
-          ))}
+        <div className="space-y-3">
+          {state.recentTickets.length === 0 ? (
+            <EmptyBox message="Aucun ticket récent." />
+          ) : (
+            state.recentTickets.map((ticket) => (
+              <TicketDashboardRow key={ticket.id} ticket={ticket} />
+            ))
+          )}
         </div>
       </Card>
     </div>
+  );
+};
+
+interface DashboardStatCardProps {
+  label: string;
+  value: number;
+  className?: string;
+  cardClassName?: string;
+}
+
+const DashboardStatCard = ({
+  label,
+  value,
+  className = "text-[#13234b]",
+  cardClassName = "",
+}: DashboardStatCardProps) => {
+  return (
+    <Card className={`p-5 ${cardClassName}`}>
+      <p className="text-sm uppercase tracking-[0.18em] text-slate-400">
+        {label}
+      </p>
+
+      <p className={`mt-4 text-4xl font-semibold ${className}`}>{value}</p>
+    </Card>
+  );
+};
+
+interface DashboardSectionHeaderProps {
+  title: string;
+  description: string;
+  link: string;
+}
+
+const DashboardSectionHeader = ({
+  title,
+  description,
+  link,
+}: DashboardSectionHeaderProps) => {
+  return (
+    <div className="flex items-start justify-between gap-4">
+      <div>
+        <h2 className="text-2xl font-semibold text-[#13234b]">{title}</h2>
+
+        <p className="mt-1 text-sm text-slate-500">{description}</p>
+      </div>
+
+      <Link
+        to={link}
+        className="shrink-0 text-sm font-semibold text-[#13234b] hover:underline"
+      >
+        Voir tout
+      </Link>
+    </div>
+  );
+};
+
+interface TicketMiniRowProps {
+  ticket: MaintenanceTicket;
+}
+
+const TicketMiniRow = ({ ticket }: TicketMiniRowProps) => {
+  return (
+    <Link
+      to={`/tickets/${ticket.id}`}
+      className="block rounded-2xl border border-slate-100 bg-slate-50 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+            {ticket.ticketNumber}
+          </p>
+
+          <p className="mt-2 font-semibold text-slate-900">{ticket.title}</p>
+
+          <p className="mt-1 text-sm text-slate-500">
+            {ticket.location.name} • {ticket.category.name}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-400">
+            {formatDateTime(ticket.createdAt)}
+          </p>
+        </div>
+
+        <span className="rounded-full bg-[#13234b] px-3 py-1 text-xs font-semibold text-white">
+          Inspecter
+        </span>
+      </div>
+    </Link>
+  );
+};
+
+const TicketDashboardRow = ({ ticket }: TicketMiniRowProps) => {
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm lg:flex-row lg:items-center lg:justify-between">
+      <div className="min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          {ticket.ticketNumber}
+        </p>
+
+        <p className="mt-2 truncate font-semibold text-slate-900">
+          {ticket.title}
+        </p>
+
+        <p className="mt-1 text-sm text-slate-500">
+          {ticket.location.name} • {ticket.category.name} •{" "}
+          {ticket.priority.name}
+        </p>
+
+        <p className="mt-1 text-xs text-slate-400">
+          {formatDateTime(ticket.createdAt)}
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <TicketStatusBadge status={ticket.status} />
+
+        {ticket.assignedTo ? (
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+            {ticket.assignedTo.firstName} {ticket.assignedTo.lastName}
+          </span>
+        ) : (
+          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+            Non assigné
+          </span>
+        )}
+
+        <Link
+          to={`/tickets/${ticket.id}`}
+          className="rounded-full bg-[#13234b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0f1d3f]"
+        >
+          Inspecter
+        </Link>
+      </div>
+    </div>
+  );
+};
+
+interface EmptyBoxProps {
+  message: string;
+}
+
+const EmptyBox = ({ message }: EmptyBoxProps) => {
+  return (
+    <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+      {message}
+    </p>
   );
 };
 
