@@ -14,8 +14,6 @@ import { z } from 'zod';
 const createSchema = z.object({
   name: z.string().min(2),
 
-  description: z.string().optional(),
-
   icon: z.string().optional(),
 
   isActive: z.boolean().optional(),

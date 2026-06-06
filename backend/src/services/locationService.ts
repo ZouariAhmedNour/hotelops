@@ -1,12 +1,9 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export type CreateLocationInput = {
   name: string;
   type: string;
   parentId?: number;
-  hotelId?: number;
   code?: string;
   isActive?: boolean;
 };
@@ -21,7 +18,6 @@ export const createLocation = async (
       name: data.name,
       type: data.type,
       parentId: data.parentId,
-      hotelId: data.hotelId,
       code: data.code,
       isActive: data.isActive ?? true,
     },
@@ -76,7 +72,6 @@ export const updateLocation = async (
       name: data.name,
       type: data.type,
       parentId: data.parentId,
-      hotelId: data.hotelId,
       code: data.code,
       isActive: data.isActive,
     },

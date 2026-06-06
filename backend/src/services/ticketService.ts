@@ -1,6 +1,5 @@
-import { PrismaClient, Prisma } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { Prisma } from "@prisma/client";
+import { prisma } from "../config/prisma";
 
 export type CreateTicketInput = {
   title: string;
@@ -15,12 +14,34 @@ export type CreateTicketInput = {
 export type ListTicketsQuery = {
   page?: string;
   limit?: string;
+
   statusId?: string;
   priorityId?: string;
   assignedToUserId?: string;
   locationId?: string;
   categoryId?: string;
+
+  statusCode?: string;
+  priorityCode?: string;
   search?: string;
+
+  unassignedOnly?: string;
+  overdueOnly?: string;
+  reportedFrom?: string;
+
+  dateFrom?: string;
+  dateTo?: string;
+
+  sortBy?: string;
+  sortOrder?: "asc" | "desc";
+};
+
+const userSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
 };
 
 const ticketInclude: Prisma.MaintenanceTicketInclude = {
@@ -29,28 +50,103 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
   priority: true,
   status: true,
   reportedBy: {
-    select: { id: true, firstName: true, lastName: true, email: true },
+    select: userSelect,
   },
   assignedTo: {
-    select: { id: true, firstName: true, lastName: true, email: true },
+    select: userSelect,
   },
-  _count: { select: { comments: true, attachments: true } },
-};
-
-const ticketIncludeWithAttachments: Prisma.MaintenanceTicketInclude = {
-  ...ticketInclude,
-  attachments: {
-    include: {
-      uploadedBy: {
-        select: { id: true, firstName: true, lastName: true, email: true },
-      },
+  validatedBy: {
+    select: userSelect,
+  },
+  _count: {
+    select: {
+      comments: true,
+      attachments: true,
+      events: true,
+      materials: true,
     },
   },
 };
 
+const ticketDetailInclude: Prisma.MaintenanceTicketInclude = {
+  ...ticketInclude,
+  comments: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
+  attachments: {
+    include: {
+      uploadedBy: {
+        select: userSelect,
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  },
+  assignments: {
+    include: {
+      assignedTo: {
+        select: userSelect,
+      },
+      assignedBy: {
+        select: userSelect,
+      },
+    },
+    orderBy: {
+      assignedAt: "desc",
+    },
+  },
+  events: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
+  materials: {
+    orderBy: {
+      createdAt: "desc",
+    },
+  },
+};
+
+const normalizeStatusCode = (code: string) => code.trim().toUpperCase();
+
 const generateTicketNumber = async (): Promise<string> => {
   const count = await prisma.maintenanceTicket.count();
-  return `TKT-${String(count + 1).padStart(6, '0')}`;
+  return `TKT-${String(count + 1).padStart(6, "0")}`;
+};
+
+const findStatusByCodes = async (codes: string[]) => {
+  const status = await prisma.maintenanceStatus.findFirst({
+    where: {
+      code: {
+        in: codes,
+      },
+    },
+  });
+
+  return status;
 };
 
 export const createTicket = async (
@@ -60,60 +156,65 @@ export const createTicket = async (
 ) => {
   const ticketNumber = await generateTicketNumber();
 
-  const priority = await prisma.maintenancePriority.findUnique({
-    where: { id: data.priorityId },
-  });
+  const [location, category, priority, user] = await Promise.all([
+    prisma.location.findUnique({ where: { id: data.locationId } }),
+    prisma.maintenanceCategory.findUnique({ where: { id: data.categoryId } }),
+    prisma.maintenancePriority.findUnique({ where: { id: data.priorityId } }),
+    prisma.user.findUnique({ where: { id: userId } }),
+  ]);
+
+  if (!location) {
+    throw Object.assign(new Error("Localisation introuvable"), {
+      statusCode: 404,
+    });
+  }
+
+  if (!category) {
+    throw Object.assign(new Error("Catégorie introuvable"), {
+      statusCode: 404,
+    });
+  }
+
+  if (!priority) {
+    throw Object.assign(new Error("Priorité introuvable"), {
+      statusCode: 404,
+    });
+  }
+
+  if (!user) {
+    throw Object.assign(new Error("Utilisateur introuvable"), {
+      statusCode: 404,
+    });
+  }
 
   let dueAt: Date | null = null;
-  if (priority?.slaHours) {
+
+  if (priority.slaHours) {
     dueAt = new Date(Date.now() + priority.slaHours * 3600000);
   }
 
-  const initialStatus = await prisma.maintenanceStatus.findFirst({
-    where: { code: 'open' },
-  });
+  const initialStatus = await findStatusByCodes(["NEW", "OPEN"]);
 
   if (!initialStatus) {
-    throw Object.assign(new Error('Statut initial introuvable'), {
-      statusCode: 500,
-    });
+    throw Object.assign(
+      new Error("Statut initial introuvable. Créez NEW ou OPEN dans la base."),
+      { statusCode: 500 }
+    );
   }
-const locationExists = await prisma.location.findUnique({
-  where: { id: data.locationId },
-});
 
-const categoryExists =
-  await prisma.maintenanceCategory.findUnique({
-    where: { id: data.categoryId },
-  });
-
-const priorityExists =
-  await prisma.maintenancePriority.findUnique({
-    where: { id: data.priorityId },
-  });
-
-const userExists = await prisma.user.findUnique({
-  where: { id: userId },
-});
-
-console.log("locationExists =", locationExists);
-console.log("categoryExists =", categoryExists);
-console.log("priorityExists =", priorityExists);
-console.log("userExists =", userExists);
-console.log("initialStatus =", initialStatus);
   return prisma.$transaction(async (tx) => {
     const ticket = await tx.maintenanceTicket.create({
       data: {
+        ticketNumber,
         title: data.title,
         description: data.description,
         locationId: data.locationId,
         categoryId: data.categoryId,
         priorityId: data.priorityId,
+        statusId: initialStatus.id,
+        reportedByUserId: userId,
         reportedFrom: data.reportedFrom,
         urgencyLevel: data.urgencyLevel,
-        ticketNumber,
-        reportedByUserId: userId,
-        statusId: initialStatus.id,
         dueAt,
       },
     });
@@ -127,17 +228,32 @@ console.log("initialStatus =", initialStatus);
           mimeType: file.mimetype,
           fileSize: file.size,
           uploadedByUserId: userId,
+          photoType: "BEFORE",
         })),
       });
     }
 
+    await tx.maintenanceTicketEvent.create({
+      data: {
+        ticketId: ticket.id,
+        userId,
+        type: "CREATED",
+        toStatusId: initialStatus.id,
+        message: "Ticket créé",
+        metadata: {
+          ticketNumber,
+          reportedFrom: data.reportedFrom ?? null,
+        },
+      },
+    });
+
     const created = await tx.maintenanceTicket.findUnique({
       where: { id: ticket.id },
-      include: ticketIncludeWithAttachments,
+      include: ticketDetailInclude,
     });
 
     if (!created) {
-      throw Object.assign(new Error('Ticket introuvable après création'), {
+      throw Object.assign(new Error("Ticket introuvable après création"), {
         statusCode: 500,
       });
     }
@@ -151,18 +267,80 @@ export const listTickets = async (query: ListTicketsQuery) => {
   const limit = Number(query.limit || 20);
   const skip = (page - 1) * limit;
 
+  const sortBy = query.sortBy || "createdAt";
+  const sortOrder = query.sortOrder || "desc";
+
   const where: Prisma.MaintenanceTicketWhereInput = {};
 
   if (query.statusId) where.statusId = Number(query.statusId);
   if (query.priorityId) where.priorityId = Number(query.priorityId);
-  if (query.assignedToUserId) where.assignedToUserId = Number(query.assignedToUserId);
+  if (query.assignedToUserId) {
+    where.assignedToUserId = Number(query.assignedToUserId);
+  }
   if (query.locationId) where.locationId = Number(query.locationId);
   if (query.categoryId) where.categoryId = Number(query.categoryId);
 
+  if (query.statusCode) {
+    where.status = {
+      code: normalizeStatusCode(query.statusCode),
+    };
+  }
+
+  if (query.priorityCode) {
+    where.priority = {
+      code: normalizeStatusCode(query.priorityCode),
+    };
+  }
+
+  if (query.unassignedOnly === "true") {
+    where.assignedToUserId = null;
+  }
+
+  if (query.reportedFrom) {
+    where.reportedFrom = query.reportedFrom;
+  }
+
+  if (query.overdueOnly === "true") {
+    where.dueAt = {
+      lt: new Date(),
+    };
+    where.status = {
+      isFinal: false,
+    };
+  }
+
+  if (query.dateFrom || query.dateTo) {
+    where.createdAt = {};
+
+    if (query.dateFrom) {
+      where.createdAt.gte = new Date(query.dateFrom);
+    }
+
+    if (query.dateTo) {
+      where.createdAt.lte = new Date(query.dateTo);
+    }
+  }
+
   if (query.search) {
     where.OR = [
-      { title: { contains: query.search, mode: 'insensitive' } },
-      { ticketNumber: { contains: query.search, mode: 'insensitive' } },
+      {
+        title: {
+          contains: query.search,
+          mode: "insensitive",
+        },
+      },
+      {
+        description: {
+          contains: query.search,
+          mode: "insensitive",
+        },
+      },
+      {
+        ticketNumber: {
+          contains: query.search,
+          mode: "insensitive",
+        },
+      },
     ];
   }
 
@@ -172,7 +350,9 @@ export const listTickets = async (query: ListTicketsQuery) => {
       skip,
       take: limit,
       include: ticketInclude,
-      orderBy: { createdAt: 'desc' },
+      orderBy: {
+        [sortBy]: sortOrder,
+      },
     }),
     prisma.maintenanceTicket.count({ where }),
   ]);
@@ -191,37 +371,11 @@ export const listTickets = async (query: ListTicketsQuery) => {
 export const getTicketById = async (id: number) => {
   const ticket = await prisma.maintenanceTicket.findUnique({
     where: { id },
-    include: {
-      ...ticketInclude,
-      comments: {
-        include: {
-          user: { select: { id: true, firstName: true, lastName: true } },
-        },
-        orderBy: { createdAt: 'asc' },
-      },
-      attachments: {
-        include: {
-          uploadedBy: {
-            select: { id: true, firstName: true, lastName: true },
-          },
-        },
-      },
-      assignments: {
-        include: {
-          assignedTo: {
-            select: { id: true, firstName: true, lastName: true },
-          },
-          assignedBy: {
-            select: { id: true, firstName: true, lastName: true },
-          },
-        },
-        orderBy: { assignedAt: 'desc' },
-      },
-    },
+    include: ticketDetailInclude,
   });
 
   if (!ticket) {
-    throw Object.assign(new Error('Ticket introuvable'), {
+    throw Object.assign(new Error("Ticket introuvable"), {
       statusCode: 404,
     });
   }
@@ -235,33 +389,123 @@ export const assignTicket = async (
   assignedByUserId: number,
   note?: string
 ) => {
-  await prisma.maintenanceAssignment.updateMany({
-    where: { ticketId, unassignedAt: null },
-    data: { unassignedAt: new Date() },
-  });
-
-  await prisma.maintenanceAssignment.create({
-    data: { ticketId, assignedToUserId, assignedByUserId, note },
-  });
-
-  return prisma.maintenanceTicket.update({
+  const ticket = await prisma.maintenanceTicket.findUnique({
     where: { id: ticketId },
-    data: { assignedToUserId },
-    include: ticketInclude,
+    include: {
+      status: true,
+    },
+  });
+
+  if (!ticket) {
+    throw Object.assign(new Error("Ticket introuvable"), {
+      statusCode: 404,
+    });
+  }
+
+  const assignedUser = await prisma.user.findUnique({
+    where: { id: assignedToUserId },
+    include: {
+      role: true,
+      agentProfile: true,
+    },
+  });
+
+  if (!assignedUser || !assignedUser.isActive) {
+    throw Object.assign(new Error("Agent introuvable ou inactif"), {
+      statusCode: 404,
+    });
+  }
+
+  if (assignedUser.role.code !== "MAINTENANCE_AGENT") {
+    throw Object.assign(
+      new Error("L'utilisateur sélectionné n'est pas un agent de maintenance"),
+      { statusCode: 400 }
+    );
+  }
+
+  const assignedStatus = await findStatusByCodes(["ASSIGNED", "OPEN", "NEW"]);
+
+  if (!assignedStatus) {
+    throw Object.assign(
+      new Error("Statut ASSIGNED introuvable. Créez ASSIGNED dans la base."),
+      { statusCode: 500 }
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.maintenanceAssignment.updateMany({
+      where: {
+        ticketId,
+        unassignedAt: null,
+      },
+      data: {
+        unassignedAt: new Date(),
+      },
+    });
+
+    await tx.maintenanceAssignment.create({
+      data: {
+        ticketId,
+        assignedToUserId,
+        assignedByUserId,
+        note,
+      },
+    });
+
+    await tx.maintenanceTicketEvent.create({
+      data: {
+        ticketId,
+        userId: assignedByUserId,
+        type: "ASSIGNED",
+        fromStatusId: ticket.statusId,
+        toStatusId: assignedStatus.id,
+        message: note || "Ticket assigné",
+        metadata: {
+          assignedToUserId,
+        },
+      },
+    });
+
+    return tx.maintenanceTicket.update({
+      where: { id: ticketId },
+      data: {
+        assignedToUserId,
+        statusId: assignedStatus.id,
+      },
+      include: ticketDetailInclude,
+    });
   });
 };
 
 export const changeStatus = async (
   ticketId: number,
   statusCode: string,
-  userId: number
+  userId: number,
+  message?: string
 ) => {
+  const normalizedStatusCode = normalizeStatusCode(statusCode);
+
+  const ticket = await prisma.maintenanceTicket.findUnique({
+    where: { id: ticketId },
+    include: {
+      status: true,
+    },
+  });
+
+  if (!ticket) {
+    throw Object.assign(new Error("Ticket introuvable"), {
+      statusCode: 404,
+    });
+  }
+
   const status = await prisma.maintenanceStatus.findUnique({
-    where: { code: statusCode },
+    where: {
+      code: normalizedStatusCode,
+    },
   });
 
   if (!status) {
-    throw Object.assign(new Error('Statut invalide'), {
+    throw Object.assign(new Error("Statut invalide"), {
       statusCode: 400,
     });
   }
@@ -270,14 +514,381 @@ export const changeStatus = async (
     statusId: status.id,
   };
 
-  if (statusCode === 'resolved') updateData.resolvedAt = new Date();
-  if (statusCode === 'closed' || statusCode === 'cancelled') {
+  if (normalizedStatusCode === "IN_PROGRESS" && !ticket.startedAt) {
+    updateData.startedAt = new Date();
+  }
+
+  if (normalizedStatusCode === "RESOLVED") {
+    updateData.resolvedAt = new Date();
+    updateData.progress = 100;
+  }
+
+  if (
+    normalizedStatusCode === "CLOSED" ||
+    normalizedStatusCode === "CANCELLED"
+  ) {
     updateData.closedAt = new Date();
   }
 
-  return prisma.maintenanceTicket.update({
-    where: { id: ticketId },
-    data: updateData,
-    include: ticketInclude,
+  return prisma.$transaction(async (tx) => {
+    await tx.maintenanceTicketEvent.create({
+      data: {
+        ticketId,
+        userId,
+        type: "STATUS_CHANGED",
+        fromStatusId: ticket.statusId,
+        toStatusId: status.id,
+        message: message || `Statut changé vers ${normalizedStatusCode}`,
+        metadata: {
+          from: ticket.status.code,
+          to: normalizedStatusCode,
+        },
+      },
+    });
+
+    return tx.maintenanceTicket.update({
+      where: { id: ticketId },
+      data: updateData,
+      include: ticketDetailInclude,
+    });
   });
+};
+
+export const addComment = async (
+  ticketId: number,
+  userId: number,
+  comment: string,
+  isInternal = false
+) => {
+  await getTicketById(ticketId);
+
+  return prisma.$transaction(async (tx) => {
+    const createdComment = await tx.maintenanceComment.create({
+      data: {
+        ticketId,
+        userId,
+        comment,
+        isInternal,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    await tx.maintenanceTicketEvent.create({
+      data: {
+        ticketId,
+        userId,
+        type: "COMMENT_ADDED",
+        message: isInternal ? "Commentaire interne ajouté" : "Commentaire ajouté",
+      },
+    });
+
+    return createdComment;
+  });
+};
+
+export const addAttachment = async (
+  ticketId: number,
+  userId: number,
+  file: Express.Multer.File,
+  photoType?: string,
+  caption?: string
+) => {
+  await getTicketById(ticketId);
+
+  return prisma.$transaction(async (tx) => {
+    const attachment = await tx.maintenanceAttachment.create({
+      data: {
+        ticketId,
+        uploadedByUserId: userId,
+        filePath: file.path,
+        fileName: file.originalname,
+        mimeType: file.mimetype,
+        fileSize: file.size,
+        photoType,
+        caption,
+      },
+      include: {
+        uploadedBy: {
+          select: userSelect,
+        },
+      },
+    });
+
+    await tx.maintenanceTicketEvent.create({
+      data: {
+        ticketId,
+        userId,
+        type: "ATTACHMENT_ADDED",
+        message: "Pièce jointe ajoutée",
+        metadata: {
+          fileName: file.originalname,
+          photoType: photoType ?? null,
+        },
+      },
+    });
+
+    return attachment;
+  });
+};
+
+export const addMaterial = async (
+  ticketId: number,
+  userId: number,
+  body: {
+    name: string;
+    quantity?: number;
+    unit?: string;
+  }
+) => {
+  await getTicketById(ticketId);
+
+  return prisma.$transaction(async (tx) => {
+    const material = await tx.maintenanceInterventionMaterial.create({
+      data: {
+        ticketId,
+        name: body.name,
+        quantity: body.quantity ?? 1,
+        unit: body.unit,
+      },
+    });
+
+    await tx.maintenanceTicketEvent.create({
+      data: {
+        ticketId,
+        userId,
+        type: "MATERIAL_ADDED",
+        message: `Matériel ajouté : ${body.name}`,
+        metadata: {
+          name: body.name,
+          quantity: body.quantity ?? 1,
+          unit: body.unit ?? null,
+        },
+      },
+    });
+
+    return material;
+  });
+};
+
+export const getStatsOverview = async () => {
+  const now = new Date();
+  const todayStart = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+
+  const [
+    total,
+    newCount,
+    assigned,
+    inProgress,
+    critical,
+    resolvedToday,
+    overdue,
+    resolutionData,
+  ] = await Promise.all([
+    prisma.maintenanceTicket.count(),
+
+    prisma.maintenanceTicket.count({
+      where: {
+        status: {
+          code: {
+            in: ["NEW", "OPEN"],
+          },
+        },
+      },
+    }),
+
+    prisma.maintenanceTicket.count({
+      where: {
+        status: {
+          code: "ASSIGNED",
+        },
+      },
+    }),
+
+    prisma.maintenanceTicket.count({
+      where: {
+        status: {
+          code: "IN_PROGRESS",
+        },
+      },
+    }),
+
+    prisma.maintenanceTicket.count({
+      where: {
+        priority: {
+          code: "CRITICAL",
+        },
+      },
+    }),
+
+    prisma.maintenanceTicket.count({
+      where: {
+        status: {
+          code: "RESOLVED",
+        },
+        resolvedAt: {
+          gte: todayStart,
+        },
+      },
+    }),
+
+    prisma.maintenanceTicket.count({
+      where: {
+        dueAt: {
+          lt: now,
+        },
+        status: {
+          isFinal: false,
+        },
+      },
+    }),
+
+    prisma.maintenanceTicket.findMany({
+      where: {
+        resolvedAt: {
+          not: null,
+        },
+      },
+      select: {
+        createdAt: true,
+        resolvedAt: true,
+      },
+    }),
+  ]);
+
+  let averageResolutionHours = 0;
+
+  if (resolutionData.length > 0) {
+    const totalHours = resolutionData.reduce((acc, ticket) => {
+      if (!ticket.resolvedAt) return acc;
+
+      return (
+        acc +
+        (ticket.resolvedAt.getTime() - ticket.createdAt.getTime()) / 3600000
+      );
+    }, 0);
+
+    averageResolutionHours = Math.round(totalHours / resolutionData.length);
+  }
+
+  return {
+    total,
+    new: newCount,
+    assigned,
+    inProgress,
+    critical,
+    overdue,
+    resolvedToday,
+    averageResolutionHours,
+  };
+};
+
+export const getStatsCharts = async () => {
+  const byStatus = await prisma.maintenanceStatus.findMany({
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      color: true,
+      _count: {
+        select: {
+          tickets: true,
+        },
+      },
+    },
+    orderBy: {
+      id: "asc",
+    },
+  });
+
+  const byPriority = await prisma.maintenancePriority.findMany({
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      _count: {
+        select: {
+          tickets: true,
+        },
+      },
+    },
+    orderBy: {
+      sortOrder: "asc",
+    },
+  });
+
+  const byCategory = await prisma.maintenanceCategory.findMany({
+    select: {
+      id: true,
+      name: true,
+      icon: true,
+      _count: {
+        select: {
+          tickets: true,
+        },
+      },
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+
+  return {
+    byStatus: byStatus.map((item) => ({
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      color: item.color,
+      count: item._count.tickets,
+    })),
+    byPriority: byPriority.map((item) => ({
+      id: item.id,
+      name: item.name,
+      code: item.code,
+      count: item._count.tickets,
+    })),
+    byCategory: byCategory.map((item) => ({
+      id: item.id,
+      name: item.name,
+      icon: item.icon,
+      count: item._count.tickets,
+    })),
+  };
+};
+
+export const getKanban = async () => {
+  const statuses = await prisma.maintenanceStatus.findMany({
+    orderBy: {
+      id: "asc",
+    },
+    include: {
+      tickets: {
+        include: ticketInclude,
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+    },
+  });
+
+  return statuses.map((status) => ({
+    id: status.id,
+    name: status.name,
+    code: status.code,
+    color: status.color,
+    isFinal: status.isFinal,
+    tickets: status.tickets,
+  }));
 };

@@ -13,8 +13,6 @@ const router = Router();
 const categorySchema = z.object({
   name: z.string(),
 
-  description: z.string().optional(),
-
   icon: z.string().optional(),
 
   isActive: z.boolean().optional(),

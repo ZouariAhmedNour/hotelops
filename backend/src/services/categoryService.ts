@@ -1,10 +1,7 @@
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 export type CreateCategoryInput = {
   name: string;
-  description?: string;
   icon?: string;
   isActive?: boolean;
 };
@@ -18,7 +15,6 @@ export const createCategory = async (
   return prisma.maintenanceCategory.create({
     data: {
       name: data.name,
-      description: data.description,
       icon: data.icon,
       isActive: data.isActive ?? true,
     },
@@ -70,7 +66,6 @@ export const updateCategory = async (
 
     data: {
       name: data.name,
-      description: data.description,
       icon: data.icon,
       isActive: data.isActive,
     },

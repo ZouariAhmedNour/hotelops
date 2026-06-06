@@ -10,8 +10,6 @@ const createSchema = z.object({
 
   parentId: z.coerce.number().int().positive().optional(),
 
-  hotelId: z.coerce.number().int().positive().optional(),
-
   code: z.string().optional(),
 
   isActive: z.boolean().optional(),

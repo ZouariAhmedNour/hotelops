@@ -14,8 +14,6 @@ const locationSchema = z.object({
 
   parentId: z.number().optional(),
 
-  hotelId: z.number().optional(),
-
   code: z.string().optional(),
 
   isActive: z.boolean().optional(),

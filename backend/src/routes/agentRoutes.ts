@@ -151,13 +151,41 @@ registry.registerPath({
 });
 
 router.use(authenticate);
-router.use(authorize("ADMIN"));
 
-router.get("/recommendations", agentController.recommendations);
-router.get("/", agentController.list);
-router.get("/:id", agentController.getById);
-router.post("/", agentController.create);
-router.put("/:id", agentController.update);
-router.delete("/:id", agentController.remove);
+router.get(
+  "/recommendations",
+  authorize("ADMIN", "CHEF_MAINT"),
+  agentController.recommendations
+);
+
+router.get(
+  "/",
+  authorize("ADMIN", "CHEF_MAINT"),
+  agentController.list
+);
+
+router.get(
+  "/:id",
+  authorize("ADMIN", "CHEF_MAINT"),
+  agentController.getById
+);
+
+router.post(
+  "/",
+  authorize("ADMIN"),
+  agentController.create
+);
+
+router.put(
+  "/:id",
+  authorize("ADMIN"),
+  agentController.update
+);
+
+router.delete(
+  "/:id",
+  authorize("ADMIN"),
+  agentController.remove
+);
 
 export default router;

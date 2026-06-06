@@ -26,9 +26,6 @@ app.use(express.urlencoded({ extended: true }));
 // Fichiers statiques
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-// Swagger
-setupSwagger(app);
-
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
@@ -39,6 +36,9 @@ app.use('/api/categories', categoryRoutes);
 app.use("/api/maintenance-teams", maintenanceTeamRoutes);
 app.use("/api/maintenance-skills", maintenanceSkillRoutes);
 app.use("/api/agents", agentRoutes);
+
+// Swagger
+setupSwagger(app);
 
 // Error handler (toujours en dernier)
 app.use(errorHandler);
