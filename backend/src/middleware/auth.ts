@@ -1,56 +1,90 @@
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import { jwtSecret } from '../config/env';
-import { error } from '../utils/response';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import { jwtSecret } from "../config/env";
+import { error } from "../utils/response";
+import { prisma } from "../config/prisma";
 
-// 🔹 Payload JWT aligné avec ton authService
+export interface AuthUser {
+  userId: number;
+  id: number;
+  email: string;
+  roleCode: string;
+  roleId: number;
+}
+
+export interface AuthRequest extends Request {
+  user?: AuthUser;
+}
+
 interface JwtPayload {
   userId: number;
   email: string;
   roleCode: string;
 }
 
-// 🔹 Middleware authenticate
-export const authenticate = (
-  req: Request & { user?: JwtPayload },
+export const authenticate = async (
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     return error(res, "Token d'authentification manquant", 401);
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
 
   try {
     const payload = jwt.verify(token, jwtSecret) as JwtPayload;
 
-    // 🔹 inject user
-    req.user = payload;
+    const user = await prisma.user.findUnique({
+      where: { id: payload.userId },
+      include: { role: true },
+    });
+
+    if (!user || !user.isActive) {
+      return error(res, "Utilisateur inactif ou introuvable", 401);
+    }
+
+    req.user = {
+      userId: user.id,
+      id: user.id,
+      email: user.email,
+      roleCode: user.role.code,
+      roleId: user.roleId,
+    };
 
     next();
-  } catch (err) {
-    return error(res, 'Token invalide ou expiré', 401);
+  } catch {
+    return error(res, "Token invalide ou expiré", 401);
   }
 };
 
-// 🔹 Middleware authorize (roles)
 export const authorize = (...roles: string[]) => {
-  return (
-    req: Request & { user?: JwtPayload },
-    res: Response,
-    next: NextFunction
-  ) => {
+  return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {
-      return error(res, 'Non authentifié', 401);
+      return error(res, "Non authentifié", 401);
     }
 
     if (!roles.includes(req.user.roleCode)) {
-      return error(res, 'Accès interdit : rôle insuffisant', 403);
+      return error(res, "Accès interdit : rôle insuffisant", 403);
     }
 
     next();
   };
 };
+
+export const requireAdmin = authorize("ADMIN");
+
+export const requireManager = authorize(
+  "ADMIN",
+  "CHEF_MAINT",
+  "RECEPTION"
+);
+
+export const requireMaintenance = authorize(
+  "ADMIN",
+  "CHEF_MAINT",
+  "MAINTENANCE_AGENT"
+);

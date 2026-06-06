@@ -1,9 +1,8 @@
-import { PrismaClient, Role, User } from "@prisma/client";
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import type { Role, User } from "@prisma/client";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
 import { jwtExpiresIn, jwtSecret } from "../config/env";
-
-const prisma = new PrismaClient();
+import { prisma } from "../config/prisma";
 
 // 🔹 Type utilisateur avec relation role
 type UserWithRole = User & { role: Role };
@@ -39,12 +38,12 @@ export const register = async ({
 
 const userRole = await prisma.role.findUnique({
   where: {
-    code: 'USER',
+    code: "RECEPTION",
   },
 });
 
 if (!userRole) {
-  const err = new Error('Rôle USER introuvable') as any;
+  const err = new Error("Rôle RECEPTION introuvable") as any;
   err.statusCode = 500;
   throw err;
 }
