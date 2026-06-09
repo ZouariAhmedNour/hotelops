@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -6,28 +6,17 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import AppCard from "../../../components/ui/AppCard";
 import { quickActionsByRole } from "../constants/quickActions";
 import { styles } from "../styles/home.styles";
+import { useAuth } from "../../../contexts/AuthContext";
 
-export default function HomeScreen({
-  navigation,
-  setIsAuthenticated,
-}: any) {
-  const [user, setUser] = useState<any>(null);
+export default function HomeScreen({ navigation }: any) {
+  const { user, logout } = useAuth();
 
-  useEffect(() => {
-    AsyncStorage.getItem("user").then((value) => {
-      if (value) {
-        setUser(JSON.parse(value));
-      }
-    });
-  }, []);
-
-  const handleLogout = async () => {
+  const handleLogout = () => {
     Alert.alert("Déconnexion", "Voulez-vous vous déconnecter ?", [
       {
         text: "Annuler",
@@ -37,10 +26,7 @@ export default function HomeScreen({
         text: "Déconnexion",
         style: "destructive",
         onPress: async () => {
-          await AsyncStorage.removeItem("token");
-          await AsyncStorage.removeItem("user");
-
-          setIsAuthenticated(false);
+          await logout();
         },
       },
     ]);
@@ -48,6 +34,15 @@ export default function HomeScreen({
 
   const roleCode = user?.role?.code || "USER";
   const actions = quickActionsByRole[roleCode] || quickActionsByRole.USER;
+
+  const handleQuickActionPress = (title: string) => {
+    if (title === "Créer ticket" || title === "Mes demandes") {
+      navigation.navigate("CreateTicket");
+      return;
+    }
+
+    Alert.alert("Info", "Cette fonctionnalité sera ajoutée prochainement.");
+  };
 
   return (
     <ScrollView
@@ -117,18 +112,25 @@ export default function HomeScreen({
 
       <View style={styles.grid}>
         {actions.map((item, index) => (
-          <AppCard key={index} style={styles.gridCard}>
-            <View style={styles.gridIcon}>
-              <MaterialCommunityIcons
-                name={item.icon}
-                size={28}
-                color="#1C2D5A"
-              />
-            </View>
+          <TouchableOpacity
+            key={index}
+            style={styles.gridCard}
+            activeOpacity={0.85}
+            onPress={() => handleQuickActionPress(item.title)}
+          >
+            <AppCard style={{ flex: 1 }}>
+              <View style={styles.gridIcon}>
+                <MaterialCommunityIcons
+                  name={item.icon}
+                  size={28}
+                  color="#1C2D5A"
+                />
+              </View>
 
-            <Text style={styles.gridTitle}>{item.title}</Text>
-            <Text style={styles.gridDesc}>{item.desc}</Text>
-          </AppCard>
+              <Text style={styles.gridTitle}>{item.title}</Text>
+              <Text style={styles.gridDesc}>{item.desc}</Text>
+            </AppCard>
+          </TouchableOpacity>
         ))}
       </View>
 

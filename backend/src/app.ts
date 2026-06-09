@@ -15,6 +15,7 @@ import categoryRoutes from './routes/categoryRoutes';
 import maintenanceTeamRoutes from "./routes/maintenanceTeamRoutes";
 import maintenanceSkillRoutes from "./routes/maintenanceSkillRoutes";
 import agentRoutes from "./routes/agentRoutes";
+import agentMobileRoutes from './routes/agentMobileRoutes';
 
 const app = express();
 
@@ -24,7 +25,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Fichiers statiques
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -35,7 +36,9 @@ app.use('/api/categories', categoryRoutes);
 
 app.use("/api/maintenance-teams", maintenanceTeamRoutes);
 app.use("/api/maintenance-skills", maintenanceSkillRoutes);
+
 app.use("/api/agents", agentRoutes);
+app.use("/api/agent", agentMobileRoutes);
 
 // Swagger
 setupSwagger(app);

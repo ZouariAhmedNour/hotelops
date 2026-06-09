@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Alert } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { authService } from "../../../services/authService";
+import { useAuth } from "../../../contexts/AuthContext";
 
-export function useLogin(setIsAuthenticated: (value: boolean) => void) {
+export function useLogin() {
+  const { login } = useAuth();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -24,13 +26,9 @@ export function useLogin(setIsAuthenticated: (value: boolean) => void) {
         password,
       });
 
-      await AsyncStorage.setItem("token", result.token);
-      await AsyncStorage.setItem("user", JSON.stringify(result.user));
-
-      setIsAuthenticated(true);
+      await login(result.token, result.user);
     } catch (error: any) {
       console.log("LOGIN ERROR =", error?.response?.data || error.message);
-
       Alert.alert("Erreur", "Email ou mot de passe incorrect.");
     } finally {
       setLoading(false);
@@ -40,10 +38,8 @@ export function useLogin(setIsAuthenticated: (value: boolean) => void) {
   return {
     email,
     setEmail,
-
     password,
     setPassword,
-
     loading,
     handleLogin,
   };

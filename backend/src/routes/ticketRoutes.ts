@@ -269,7 +269,6 @@ router.get("/kanban", requireManager, ticketController.kanban);
 
 router.post(
   "/",
-  authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "MAINTENANCE_AGENT"),
   upload.array("files", 10),
   ticketController.create
 );

@@ -17,21 +17,11 @@ import { styles } from "../styles/login.styles";
 
 type Props = {
   navigation: any;
-  setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
-export default function LoginScreen({
-  navigation,
-  setIsAuthenticated,
-}: Props) {
-  const {
-    email,
-    setEmail,
-    password,
-    setPassword,
-    loading,
-    handleLogin,
-  } = useLogin(setIsAuthenticated);
+export default function LoginScreen({ navigation }: Props) {
+  const { email, setEmail, password, setPassword, loading, handleLogin } =
+    useLogin();
 
   return (
     <KeyboardAvoidingView
@@ -77,11 +67,7 @@ export default function LoginScreen({
             <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
           </TouchableOpacity>
 
-          <AppButton
-            title="Connexion"
-            onPress={handleLogin}
-            loading={loading}
-          />
+          <AppButton title="Connexion" onPress={handleLogin} loading={loading} />
 
           <View style={styles.bottomText}>
             <Text style={styles.bottomMuted}>Pas encore membre ? </Text>

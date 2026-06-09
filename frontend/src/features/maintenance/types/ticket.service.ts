@@ -31,13 +31,40 @@ export const ticketService = {
   },
 
   create: async (data: CreateTicketPayload): Promise<MaintenanceTicket> => {
-    const res = await apiClient.post<ApiResponse<MaintenanceTicket>>(
-      "/tickets",
-      data
-    );
+  const formData = new FormData();
 
-    return res.data.data;
-  },
+  formData.append("title", data.title);
+  formData.append("description", data.description);
+  formData.append("locationId", String(data.locationId));
+  formData.append("categoryId", String(data.categoryId));
+  formData.append("priorityId", String(data.priorityId));
+
+  if (data.reportedFrom) {
+    formData.append("reportedFrom", data.reportedFrom);
+  }
+
+  if (data.urgencyLevel !== undefined) {
+    formData.append("urgencyLevel", String(data.urgencyLevel));
+  }
+
+  if (data.files && data.files.length > 0) {
+    data.files.forEach((file) => {
+      formData.append("files", file);
+    });
+  }
+
+  const res = await apiClient.post<ApiResponse<MaintenanceTicket>>(
+    "/tickets",
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    }
+  );
+
+  return res.data.data;
+},
 
   update: async (
     id: number,
@@ -51,21 +78,21 @@ export const ticketService = {
     return res.data.data;
   },
 
-  assign: async (
-    id: number,
-    assignedToUserId: number,
-    note?: string
-  ): Promise<MaintenanceTicket> => {
-    const res = await apiClient.patch<ApiResponse<MaintenanceTicket>>(
-      `/tickets/${id}/assign`,
-      {
-        assignedToUserId,
-        note,
-      }
-    );
+ assign: async (
+  id: number,
+  assignedToUserId: number,
+  note?: string
+): Promise<MaintenanceTicket> => {
+  const res = await apiClient.post<ApiResponse<MaintenanceTicket>>(
+    `/tickets/${id}/assign`,
+    {
+      assignedToUserId,
+      note,
+    }
+  );
 
-    return res.data.data;
-  },
+  return res.data.data;
+},
 
   changeStatus: async (
     id: number,

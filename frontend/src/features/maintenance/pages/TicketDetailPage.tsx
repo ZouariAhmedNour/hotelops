@@ -8,6 +8,7 @@ import { formatDateTime } from "../../../shared/utils/date";
 import AgentRecommendations from "../../maintenance-staff/components/AgentRecommendations";
 import { ticketService } from "../api/ticket.service";
 import { useState } from "react";
+import TicketAttachments from "../components/TicketAttachments";
 
 const TicketDetailPage = () => {
   const { id } = useParams();
@@ -91,6 +92,8 @@ const TicketDetailPage = () => {
               {ticket.description}
             </p>
           </Card>
+
+          <TicketAttachments attachments={ticket.attachments} />
 
           <div className="grid gap-6 md:grid-cols-3">
             <Card className="p-5">

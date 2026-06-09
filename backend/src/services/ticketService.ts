@@ -223,7 +223,7 @@ export const createTicket = async (
       await tx.maintenanceAttachment.createMany({
         data: files.map((file) => ({
           ticketId: ticket.id,
-          filePath: file.path,
+          filePath: `/uploads/${file.filename}`,
           fileName: file.originalname,
           mimeType: file.mimetype,
           fileSize: file.size,
@@ -609,7 +609,7 @@ export const addAttachment = async (
       data: {
         ticketId,
         uploadedByUserId: userId,
-        filePath: file.path,
+        filePath: `/uploads/${file.filename}`,
         fileName: file.originalname,
         mimeType: file.mimetype,
         fileSize: file.size,

@@ -67,6 +67,8 @@ export interface MaintenanceAttachment {
   photoType?: string | null;
   caption?: string | null;
   createdAt: string;
+
+  uploadedBy?: Pick<User, "id" | "firstName" | "lastName" | "email">;
 }
 
 export interface MaintenanceTicket {
@@ -135,6 +137,7 @@ export interface CreateTicketPayload {
   priorityId: number;
   reportedFrom?: "web" | "mobile" | "reception";
   urgencyLevel?: number;
+  files?: File[];
 }
 
 export interface TicketStatsOverview {
