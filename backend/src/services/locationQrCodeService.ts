@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { prisma } from "../config/prisma";
 
 const getBaseUrl = () => {
-  return process.env.PUBLIC_QR_BASE_URL || "http://localhost:5173/scan";
+  return process.env.PUBLIC_QR_BASE_URL || "hotelops://scan";
 };
 
 export const locationQrCodeService = {
@@ -11,11 +11,7 @@ export const locationQrCodeService = {
     return prisma.locationQrCode.findMany({
       orderBy: { createdAt: "desc" },
       include: {
-        location: {
-          include: {
-            parent: true,
-          },
-        },
+        location: true,
         createdBy: {
           select: {
             id: true,
@@ -98,13 +94,16 @@ export const locationQrCodeService = {
     });
 
     if (!location) {
-      throw new Error("Localisation introuvable");
+      throw new Error("Endroit introuvable");
     }
 
     const existing = await prisma.locationQrCode.findFirst({
       where: {
         locationId: data.locationId,
         isActive: true,
+      },
+      include: {
+        location: true,
       },
     });
 
@@ -208,11 +207,7 @@ export const locationQrCodeService = {
     const qrCode = await prisma.locationQrCode.findUnique({
       where: { token },
       include: {
-        location: {
-          include: {
-            parent: true,
-          },
-        },
+        location: true,
       },
     });
 

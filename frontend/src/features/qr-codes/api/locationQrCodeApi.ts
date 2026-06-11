@@ -1,4 +1,5 @@
 import apiClient from "../../../shared/api/apiClient";
+import type { HotelLocation } from "../../locations/api/locationApi";
 
 export interface LocationQrCode {
   id: number;
@@ -13,22 +14,11 @@ export interface LocationQrCode {
   updatedAt: string;
   qrImageDataUrl?: string;
   alreadyExists?: boolean;
-  location: {
-    id: number;
-    name: string;
-    type: string;
-    code?: string;
-    parent?: {
-      id: number;
-      name: string;
-      type: string;
-    } | null;
-  };
+  location: HotelLocation;
   _count?: {
     tickets: number;
   };
 }
-//
 
 export const locationQrCodeApi = {
   async getAll() {
@@ -47,12 +37,16 @@ export const locationQrCodeApi = {
   },
 
   async regenerate(id: number) {
-    const response = await apiClient.patch(`/location-qr-codes/${id}/regenerate`);
+    const response = await apiClient.patch(
+      `/location-qr-codes/${id}/regenerate`
+    );
     return response.data.data as LocationQrCode;
   },
 
   async toggleStatus(id: number) {
-    const response = await apiClient.patch(`/location-qr-codes/${id}/toggle-status`);
+    const response = await apiClient.patch(
+      `/location-qr-codes/${id}/toggle-status`
+    );
     return response.data.data as LocationQrCode;
   },
 };

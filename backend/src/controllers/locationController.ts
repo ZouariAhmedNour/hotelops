@@ -1,17 +1,26 @@
-import { Request, Response, NextFunction } from 'express';
-import * as locationService from '../services/locationService';
-import { success } from '../utils/response';
-import { z } from 'zod';
+import { Request, Response, NextFunction } from "express";
+import * as locationService from "../services/locationService";
+import { success } from "../utils/response";
+import { z } from "zod";
+
+const locationTypeSchema = z.enum([
+  "ROOM",
+  "FLOOR",
+  "COMMON_AREA",
+  "SERVICE_AREA",
+  "OUTDOOR",
+  "PARKING",
+  "OTHER",
+]);
 
 const createSchema = z.object({
   name: z.string().min(2),
-
-  type: z.string().min(2),
-
-  parentId: z.coerce.number().int().positive().optional(),
-
-  code: z.string().optional(),
-
+  code: z.string().min(2),
+  type: locationTypeSchema,
+  zone: z.string().optional(),
+  floor: z.string().optional(),
+  roomNumber: z.string().optional(),
+  description: z.string().optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -25,16 +34,9 @@ export const create = async (
   try {
     const data = createSchema.parse(req.body);
 
-    const location =
-      await locationService.createLocation(data);
+    const location = await locationService.createLocation(data);
 
-    return success(
-      res,
-      location,
-      'Location créée',
-      201
-    );
-
+    return success(res, location, "Endroit créé avec succès", 201);
   } catch (err) {
     next(err);
   }
@@ -46,11 +48,9 @@ export const list = async (
   next: NextFunction
 ) => {
   try {
-    const locations =
-      await locationService.listLocations();
+    const locations = await locationService.listLocations();
 
     return success(res, locations);
-
   } catch (err) {
     next(err);
   }
@@ -62,13 +62,9 @@ export const getOne = async (
   next: NextFunction
 ) => {
   try {
-    const location =
-      await locationService.getLocationById(
-        Number(req.params.id)
-      );
+    const location = await locationService.getLocationById(Number(req.params.id));
 
     return success(res, location);
-
   } catch (err) {
     next(err);
   }
@@ -82,18 +78,12 @@ export const update = async (
   try {
     const data = updateSchema.parse(req.body);
 
-    const location =
-      await locationService.updateLocation(
-        Number(req.params.id),
-        data
-      );
-
-    return success(
-      res,
-      location,
-      'Location mise à jour'
+    const location = await locationService.updateLocation(
+      Number(req.params.id),
+      data
     );
 
+    return success(res, location, "Endroit mis à jour avec succès");
   } catch (err) {
     next(err);
   }
@@ -105,16 +95,9 @@ export const remove = async (
   next: NextFunction
 ) => {
   try {
-    await locationService.deleteLocation(
-      Number(req.params.id)
-    );
+    await locationService.deleteLocation(Number(req.params.id));
 
-    return success(
-      res,
-      null,
-      'Location supprimée'
-    );
-
+    return success(res, null, "Endroit supprimé avec succès");
   } catch (err) {
     next(err);
   }

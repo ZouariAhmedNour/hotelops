@@ -2,40 +2,60 @@ import { prisma } from "../config/prisma";
 
 export type CreateLocationInput = {
   name: string;
+  code: string;
   type: string;
-  parentId?: number;
-  code?: string;
+  zone?: string;
+  floor?: string;
+  roomNumber?: string;
+  description?: string;
   isActive?: boolean;
 };
 
 export type UpdateLocationInput = Partial<CreateLocationInput>;
 
-export const createLocation = async (
-  data: CreateLocationInput
-) => {
+export const createLocation = async (data: CreateLocationInput) => {
   return prisma.location.create({
     data: {
       name: data.name,
-      type: data.type,
-      parentId: data.parentId,
       code: data.code,
+      type: data.type,
+      zone: data.zone,
+      floor: data.floor,
+      roomNumber: data.roomNumber,
+      description: data.description,
       isActive: data.isActive ?? true,
     },
     include: {
-      parent: true,
-      children: true,
+      qrCodes: true,
+      _count: {
+        select: {
+          tickets: true,
+          qrCodes: true,
+        },
+      },
     },
   });
 };
 
 export const listLocations = async () => {
   return prisma.location.findMany({
+    orderBy: [
+      { floor: "asc" },
+      { type: "asc" },
+      { name: "asc" },
+    ],
     include: {
-      parent: true,
-      children: true,
-    },
-    orderBy: {
-      id: 'desc',
+      qrCodes: {
+        where: {
+          isActive: true,
+        },
+      },
+      _count: {
+        select: {
+          tickets: true,
+          qrCodes: true,
+        },
+      },
     },
   });
 };
@@ -44,17 +64,35 @@ export const getLocationById = async (id: number) => {
   const location = await prisma.location.findUnique({
     where: { id },
     include: {
-      parent: true,
-      children: true,
-      tickets: true,
+      qrCodes: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+      tickets: {
+        orderBy: {
+          createdAt: "desc",
+        },
+        include: {
+          category: true,
+          priority: true,
+          status: true,
+          publicReporter: true,
+        },
+      },
+      _count: {
+        select: {
+          tickets: true,
+          qrCodes: true,
+        },
+      },
     },
   });
 
   if (!location) {
-    throw Object.assign(
-      new Error('Location introuvable'),
-      { statusCode: 404 }
-    );
+    throw Object.assign(new Error("Endroit introuvable"), {
+      statusCode: 404,
+    });
   }
 
   return location;
@@ -70,20 +108,42 @@ export const updateLocation = async (
     where: { id },
     data: {
       name: data.name,
-      type: data.type,
-      parentId: data.parentId,
       code: data.code,
+      type: data.type,
+      zone: data.zone,
+      floor: data.floor,
+      roomNumber: data.roomNumber,
+      description: data.description,
       isActive: data.isActive,
     },
     include: {
-      parent: true,
-      children: true,
+      qrCodes: true,
+      _count: {
+        select: {
+          tickets: true,
+          qrCodes: true,
+        },
+      },
     },
   });
 };
 
 export const deleteLocation = async (id: number) => {
-  await getLocationById(id);
+  const location = await getLocationById(id);
+
+  if (location._count.tickets > 0) {
+    throw Object.assign(
+      new Error("Impossible de supprimer cet endroit car il possède des tickets."),
+      { statusCode: 400 }
+    );
+  }
+
+  if (location._count.qrCodes > 0) {
+    throw Object.assign(
+      new Error("Impossible de supprimer cet endroit car il possède des codes QR."),
+      { statusCode: 400 }
+    );
+  }
 
   return prisma.location.delete({
     where: { id },

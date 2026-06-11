@@ -19,7 +19,7 @@ const QrCodeCard = ({ qrCode, onView, onRegenerate, onToggle }: Props) => {
 
     const link = document.createElement("a");
     link.href = qrCode.qrImageDataUrl;
-    link.download = `qr-${qrCode.location.name}.png`;
+    link.download = `qr-${qrCode.location.code}.png`;
     link.click();
   };
 
@@ -38,10 +38,15 @@ const QrCodeCard = ({ qrCode, onView, onRegenerate, onToggle }: Props) => {
 
             <p className="mt-1 text-sm text-slate-500">
               Type : {qrCode.location.type}
-              {qrCode.location.code ? ` · Code : ${qrCode.location.code}` : ""}
+              {qrCode.location.floor ? ` · Étage : ${qrCode.location.floor}` : ""}
+              {qrCode.location.zone ? ` · Zone : ${qrCode.location.zone}` : ""}
             </p>
 
-            <p className="mt-2 text-sm text-slate-400 break-all">
+            <p className="mt-2 text-sm text-slate-400">
+              Code endroit : {qrCode.location.code}
+            </p>
+
+            <p className="mt-2 break-all text-sm text-slate-400">
               {qrCode.url}
             </p>
           </div>
@@ -96,7 +101,7 @@ const QrCodeCard = ({ qrCode, onView, onRegenerate, onToggle }: Props) => {
 
         <Button onClick={handleDownload} className="rounded-full px-4">
           <Download size={16} />
-          Télécharger
+          PNG
         </Button>
 
         <Button onClick={() => onRegenerate(qrCode)} className="rounded-full px-4">

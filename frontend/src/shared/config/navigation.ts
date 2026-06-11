@@ -9,6 +9,7 @@ import {
   BarChart3,
   UserCog,
   QrCode,
+  MapPinned,
 } from "lucide-react";
 
 import { ROUTES } from "./routes";
@@ -128,11 +129,18 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     allowedRoles: [ROLES.ADMIN, ROLES.CHEF_MAINT, ROLES.FINANCE],
   },
 
- {
+{
+  label: "Endroits",
+  path: ROUTES.LOCATIONS,
+  icon: MapPinned,
+  section: "administration",
+  allowedRoles: [ROLES.ADMIN],
+},
+{
   label: "Codes QR",
   path: ROUTES.QR_CODES,
   icon: QrCode,
   section: "administration",
   allowedRoles: [ROLES.ADMIN],
-}
+},
 ];

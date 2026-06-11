@@ -31,6 +31,7 @@ import { ROLES } from "../../shared/config/roles";
 import ProtectedRoute from "./ProtectedRoute";
 import RoleGuard from "./RoleGuard";
 import AppLayout from "../../shared/components/layout/AppLayout";
+import LocationManagementPage from "../../features/locations/pages/LocationManagementPage";
 
 const AppRouter = () => {
   return (
@@ -106,6 +107,10 @@ const AppRouter = () => {
 
             <Route element={<RoleGuard allowedRoles={[ROLES.ADMIN]} />}>
               <Route path={ROUTES.USERS} element={<UsersPage />} />
+
+              <Route path={ROUTES.LOCATIONS} element={<LocationManagementPage />} />
+
+              <Route path={ROUTES.QR_CODES} element={<QrCodeManagementPage />} />
 
               <Route path={ROUTES.QR_CODES} element={<QrCodeManagementPage />} />
 

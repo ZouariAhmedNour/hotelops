@@ -1,13 +1,7 @@
 import apiClient from "../../../shared/api/apiClient";
+import type { HotelLocation } from "../../locations/api/locationApi";
 
-export interface LocationOption {
-  id: number;
-  name: string;
-  type: string;
-  code?: string;
-  parentId?: number;
-  isActive: boolean;
-}
+export type LocationOption = HotelLocation;
 
 export const locationSelectApi = {
   async getAll() {

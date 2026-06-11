@@ -56,19 +56,26 @@ model User {
 
 // ============================================================
 // LOCALISATION
-// Arbre hiérarchique : Hôtel > Étage > Zone > Chambre
+// 
 // ============================================================
 
 model Location {
-  id       Int     @id @default(autoincrement())
-  name     String
-  type     String // HOTEL | FLOOR | AREA | ROOM
-  parentId Int?
-  code     String? @unique
-  isActive Boolean @default(true)
+  id          Int      @id @default(autoincrement())
 
-  parent   Location?  @relation("LocationTree", fields: [parentId], references: [id])
-  children Location[] @relation("LocationTree")
+  name        String
+  code        String   @unique
+
+  type        String   // ROOM | FLOOR | COMMON_AREA | SERVICE_AREA | OUTDOOR | PARKING | OTHER
+  zone        String?  // Hébergement | Réception | Loisirs | Service | Extérieur
+  floor       String?  // RDC | 1 | 2 | 3 | Sous-sol | Extérieur
+
+  roomNumber  String?
+  description String?
+
+  isActive    Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
 
   tickets MaintenanceTicket[]
   qrCodes LocationQrCode[]
