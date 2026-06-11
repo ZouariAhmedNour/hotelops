@@ -16,6 +16,8 @@ import maintenanceTeamRoutes from "./routes/maintenanceTeamRoutes";
 import maintenanceSkillRoutes from "./routes/maintenanceSkillRoutes";
 import agentRoutes from "./routes/agentRoutes";
 import agentMobileRoutes from './routes/agentMobileRoutes';
+import publicTicketRoutes from './routes/publicTicketRoutes';
+import locationQrCodeRoutes from './routes/locationQrCodeRoutes';
 
 const app = express();
 
@@ -39,6 +41,9 @@ app.use("/api/maintenance-skills", maintenanceSkillRoutes);
 
 app.use("/api/agents", agentRoutes);
 app.use("/api/agent", agentMobileRoutes);
+
+app.use("/api/location-qr-codes", locationQrCodeRoutes);
+app.use("/api/public", publicTicketRoutes);
 
 // Swagger
 setupSwagger(app);
