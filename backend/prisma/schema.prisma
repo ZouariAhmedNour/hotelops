@@ -50,6 +50,8 @@ model User {
 
   ticketEvents MaintenanceTicketEvent[]
   agentProfile MaintenanceAgentProfile?
+
+  qrCodesCreated LocationQrCode[] @relation("QrCodeCreatedBy")
 }
 
 // ============================================================
@@ -69,6 +71,7 @@ model Location {
   children Location[] @relation("LocationTree")
 
   tickets MaintenanceTicket[]
+  qrCodes LocationQrCode[]
 }
 
 // ============================================================
@@ -118,11 +121,14 @@ model MaintenanceTicket {
   categoryId        Int
   priorityId        Int
   statusId          Int
-  reportedByUserId  Int
+  reportedByUserId  Int?
   assignedToUserId  Int?
   validatedByUserId Int?
 
-  reportedFrom String? // mobile | web | reception
+  publicReporterId Int?
+  qrCodeId         Int?
+
+  reportedFrom String? // mobile | web | reception | qr_public
   urgencyLevel Int?
   progress     Int     @default(0)
 
@@ -149,9 +155,11 @@ model MaintenanceTicket {
   priority MaintenancePriority @relation(fields: [priorityId], references: [id])
   status   MaintenanceStatus   @relation(fields: [statusId], references: [id])
 
-  reportedBy  User  @relation("ReportedBy", fields: [reportedByUserId], references: [id])
-  assignedTo  User? @relation("AssignedTo", fields: [assignedToUserId], references: [id])
-  validatedBy User? @relation("ValidatedBy", fields: [validatedByUserId], references: [id])
+  reportedBy     User?                 @relation("ReportedBy", fields: [reportedByUserId], references: [id])
+  assignedTo     User?                 @relation("AssignedTo", fields: [assignedToUserId], references: [id])
+  validatedBy    User?                 @relation("ValidatedBy", fields: [validatedByUserId], references: [id])
+  publicReporter PublicTicketReporter? @relation(fields: [publicReporterId], references: [id])
+  qrCode         LocationQrCode?       @relation(fields: [qrCodeId], references: [id])
 
   comments    MaintenanceComment[]
   attachments MaintenanceAttachment[]
@@ -307,4 +315,50 @@ model MaintenanceAgentSkill {
   skill        MaintenanceSkill        @relation(fields: [skillId], references: [id])
 
   @@unique([agentProfileId, skillId])
+}
+
+// ============================================================
+// QR CODES
+// ============================================================
+
+model LocationQrCode {
+  id         Int      @id @default(autoincrement())
+  locationId Int
+  token      String   @unique
+  label      String?
+  url        String
+  isActive   Boolean  @default(true)
+
+  scanCount       Int       @default(0)
+  lastScannedAt   DateTime?
+  createdByUserId Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  location  Location @relation(fields: [locationId], references: [id])
+  createdBy User?    @relation("QrCodeCreatedBy", fields: [createdByUserId], references: [id])
+
+  tickets MaintenanceTicket[]
+}
+
+model PublicTicketReporter {
+  id Int @id @default(autoincrement())
+
+  reporterType String // CLIENT | STAFF | VISITOR | OTHER | ANONYMOUS
+
+  fullName        String?
+  phone           String?
+  email           String?
+  roomNumber      String?
+  reservationCode String?
+
+  sourceIp  String?
+  userAgent String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  tickets MaintenanceTicket[]
 }
