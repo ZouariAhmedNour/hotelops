@@ -23,6 +23,8 @@ import AgentCreatePage from "../../features/maintenance-staff/pages/AgentCreateP
 import AgentListPage from "../../features/maintenance-staff/pages/AgentListPage";
 import AgentDetailPage from "../../features/maintenance-staff/pages/AgentDetailPage";
 
+import QrCodeManagementPage from "../../features/qr-codes/pages/QrCodeManagementPage";
+
 import { ROUTES } from "../../shared/config/routes";
 import { ROLES } from "../../shared/config/roles";
 
@@ -36,6 +38,8 @@ const AppRouter = () => {
       <Routes>
         <Route path={ROUTES.LOGIN} element={<LoginPage />} />
         <Route path={ROUTES.SIGNUP} element={<SignupPage />} />
+
+
 
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
@@ -102,6 +106,8 @@ const AppRouter = () => {
 
             <Route element={<RoleGuard allowedRoles={[ROLES.ADMIN]} />}>
               <Route path={ROUTES.USERS} element={<UsersPage />} />
+
+              <Route path={ROUTES.QR_CODES} element={<QrCodeManagementPage />} />
 
               <Route
                 path={ROUTES.MAINTENANCE_STAFF}

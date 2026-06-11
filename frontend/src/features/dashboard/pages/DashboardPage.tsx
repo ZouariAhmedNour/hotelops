@@ -1,5 +1,6 @@
 import { ROLES } from "../../../shared/config/roles";
 import { useAuth } from "../../auth/contexts/useAuth";
+import AdminDashboardPage from "./AdminDashboardPage";
 import AgentDashboardPage from "./AgentDashboardPage";
 import MaintenanceDashboardPage from "./MaintenanceDashboardPage";
 import ReceptionDashboardPage from "./ReceptionDashboardPage";
@@ -11,7 +12,7 @@ const DashboardPage = () => {
 
   switch (roleCode) {
     case ROLES.ADMIN:
-      return <MaintenanceDashboardPage />;
+      return <AdminDashboardPage />;
 
     case ROLES.CHEF_MAINT:
       return <MaintenanceDashboardPage />;
