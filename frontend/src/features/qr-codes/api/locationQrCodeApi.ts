@@ -28,6 +28,7 @@ export interface LocationQrCode {
     tickets: number;
   };
 }
+//
 
 export const locationQrCodeApi = {
   async getAll() {
