@@ -87,4 +87,7 @@ router.post(
   publicTicketController.createTicket
 );
 
+router.get("/categories", publicTicketController.getCategories);
+router.get("/priorities", publicTicketController.getPriorities);
+
 export default router;

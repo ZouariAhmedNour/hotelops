@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { locationQrCodeService } from "../services/locationQrCodeService";
 import { publicTicketService } from "../services/publicTicketService";
 import { success, error } from "../utils/response";
+import { prisma } from "../config/prisma";
 
 const getSingleString = (value: string | string[] | undefined) => {
   if (!value) return "";
@@ -48,4 +49,26 @@ export const publicTicketController = {
       201
     );
   },
+  async getCategories(req: Request, res: Response) {
+  const categories = await prisma.maintenanceCategory.findMany({
+    where: {
+      isActive: true,
+    },
+    orderBy: {
+      name: "asc",
+    },
+  });
+
+  return success(res, categories);
+},
+
+async getPriorities(req: Request, res: Response) {
+  const priorities = await prisma.maintenancePriority.findMany({
+    orderBy: {
+      sortOrder: "asc",
+    },
+  });
+
+  return success(res, priorities);
+},
 };

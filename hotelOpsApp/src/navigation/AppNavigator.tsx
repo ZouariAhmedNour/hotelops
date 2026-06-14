@@ -8,6 +8,8 @@ import RegisterScreen from "../features/auth/screens/RegisterScreen";
 import HomeScreen from "../features/home/screens/HomeScreen";
 import CreateTicketScreen from "../features/tickets/screens/CreateTicketScreen";
 
+import QrScannerScreen from "../features/tickets/screens/QrScannerScreen";
+import PublicCreateTicketScreen from "../features/tickets/screens/PublicCreateTicketScreen";
 
 import { useAuth } from "../contexts/AuthContext";
 import { colors } from "../theme/colors";
@@ -23,6 +25,12 @@ export type RootStackParamList = {
   Home: undefined;
   CreateTicket: undefined;
 
+  QrScanner: undefined;
+  PublicCreateTicket: {
+    token: string;
+    qrInfo: any;
+  };
+
   AgentHome: undefined;
   AgentTasks: undefined;
   AgentTaskDetail: {
@@ -32,19 +40,41 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const publicScreenOptions = {
+  headerStyle: {
+    backgroundColor: colors.primary,
+  },
+  headerTintColor: colors.white,
+  headerTitleStyle: {
+    fontWeight: "700" as const,
+  },
+};
+
+function PublicScreens() {
+  return (
+    <>
+      <Stack.Screen
+        name="QrScanner"
+        component={QrScannerScreen}
+        options={{
+          title: "Scanner QR",
+        }}
+      />
+
+      <Stack.Screen
+        name="PublicCreateTicket"
+        component={PublicCreateTicketScreen}
+        options={{
+          title: "Signalement",
+        }}
+      />
+    </>
+  );
+}
+
 function AgentStack() {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: colors.primary,
-        },
-        headerTintColor: colors.white,
-        headerTitleStyle: {
-          fontWeight: "700",
-        },
-      }}
-    >
+    <Stack.Navigator screenOptions={publicScreenOptions}>
       <Stack.Screen
         name="AgentHome"
         component={AgentHomeScreen}
@@ -68,20 +98,15 @@ function AgentStack() {
           title: "Détail intervention",
         }}
       />
+
+      {PublicScreens()}
     </Stack.Navigator>
   );
 }
 
 function UserStack() {
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: colors.primary,
-        },
-        headerTintColor: colors.white,
-      }}
-    >
+    <Stack.Navigator screenOptions={publicScreenOptions}>
       <Stack.Screen
         name="Home"
         component={HomeScreen}
@@ -97,15 +122,32 @@ function UserStack() {
           title: "Nouveau ticket",
         }}
       />
+
+      {PublicScreens()}
     </Stack.Navigator>
   );
 }
 
 function AuthStack() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
+    <Stack.Navigator screenOptions={publicScreenOptions}>
+      <Stack.Screen
+        name="Login"
+        component={LoginScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+
+      <Stack.Screen
+        name="Register"
+        component={RegisterScreen}
+        options={{
+          headerShown: false,
+        }}
+      />
+
+      {PublicScreens()}
     </Stack.Navigator>
   );
 }

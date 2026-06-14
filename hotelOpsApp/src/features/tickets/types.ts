@@ -3,7 +3,13 @@ import type * as ImagePicker from "expo-image-picker";
 export type LocationItem = {
   id: number;
   name: string;
+  code: string;
   type: string;
+  zone?: string | null;
+  floor?: string | null;
+  roomNumber?: string | null;
+  description?: string | null;
+  isActive?: boolean;
 };
 
 export type PriorityCode = "critical" | "high" | "medium" | "low";

@@ -24,9 +24,12 @@ export type MaintenanceCategory = {
 export type Location = {
   id: number;
   name: string;
+  code: string;
   type: string;
-  parentId?: number | null;
-  code?: string | null;
+  zone?: string | null;
+  floor?: string | null;
+  roomNumber?: string | null;
+  description?: string | null;
   isActive?: boolean;
 };
 

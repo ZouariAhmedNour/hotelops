@@ -69,7 +69,29 @@ export default function LoginScreen({ navigation }: Props) {
 
           <AppButton title="Connexion" onPress={handleLogin} loading={loading} />
 
-          <View style={styles.bottomText}>
+<TouchableOpacity
+  onPress={() => navigation.navigate("QrScanner")}
+  style={{
+    marginTop: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 14,
+    borderRadius: 18,
+    backgroundColor: "#EEF1F7",
+  }}
+>
+  <Text
+    style={{
+      color: "#13234b",
+      fontWeight: "800",
+      fontSize: 15,
+    }}
+  >
+    Scanner un QR code sans connexion
+  </Text>
+</TouchableOpacity>
+
+<View style={styles.bottomText}>
             <Text style={styles.bottomMuted}>Pas encore membre ? </Text>
 
             <TouchableOpacity onPress={() => navigation.navigate("Register")}>
