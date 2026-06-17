@@ -1,5 +1,12 @@
 import React from "react";
-import { View, Text, Pressable, StyleSheet, ViewStyle, TextStyle } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+} from "react-native";
 
 import { colors } from "../../../theme/colors";
 import type { PriorityItem } from "../types";
@@ -24,7 +31,11 @@ export default function PrioritySelector({
     <View style={styles.row}>
       {priorities.map((item) => {
         const active = item.id === selectedId;
-        const priorityStyle = stylesByPriority[item.code] || stylesByPriority.medium;
+
+        const normalizedCode = String(item.code).trim().toUpperCase();
+
+        const priorityStyle =
+          stylesByPriority[normalizedCode] || stylesByPriority.MEDIUM;
 
         return (
           <Pressable
@@ -74,7 +85,7 @@ const styles = StyleSheet.create({
 });
 
 const stylesByPriority: Record<string, PriorityStyle> = {
-  critical: {
+  CRITICAL: {
     container: {
       backgroundColor: colors.dangerBg,
       borderColor: colors.danger,
@@ -84,7 +95,7 @@ const stylesByPriority: Record<string, PriorityStyle> = {
     },
   },
 
-  high: {
+  HIGH: {
     container: {
       backgroundColor: colors.warningBg,
       borderColor: colors.warning,
@@ -94,7 +105,7 @@ const stylesByPriority: Record<string, PriorityStyle> = {
     },
   },
 
-  medium: {
+  MEDIUM: {
     container: {
       backgroundColor: colors.infoBg,
       borderColor: colors.info,
@@ -104,7 +115,7 @@ const stylesByPriority: Record<string, PriorityStyle> = {
     },
   },
 
-  low: {
+  LOW: {
     container: {
       backgroundColor: colors.successBg,
       borderColor: colors.success,

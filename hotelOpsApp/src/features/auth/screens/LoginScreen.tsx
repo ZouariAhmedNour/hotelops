@@ -87,7 +87,7 @@ export default function LoginScreen({ navigation }: Props) {
       fontSize: 15,
     }}
   >
-    Scanner un QR code sans connexion
+    Scanner un QR code sans connexionD
   </Text>
 </TouchableOpacity>
 

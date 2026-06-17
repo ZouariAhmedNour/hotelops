@@ -120,13 +120,13 @@ router.use(authenticate);
 
 router.get(
   "/",
-  authorize("ADMIN", "CHEF_MAINT", "RECEPTION"),
+  authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "USER"),
   locationController.list
 );
 
 router.get(
   "/:id",
-  authorize("ADMIN", "CHEF_MAINT", "RECEPTION"),
+  authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "USER"),
   locationController.getOne
 );
 

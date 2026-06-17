@@ -58,13 +58,17 @@ export default function PhotoUploader({
           style={styles.photosList}
         >
           {photos.map((photo) => (
-            <Pressable
-              key={photo.uri}
-              onLongPress={() => onRemove(photo.uri)}
-              style={styles.photoThumbWrap}
-            >
+            <View key={photo.uri} style={styles.photoThumbWrap}>
               <Image source={{ uri: photo.uri }} style={styles.photoThumb} />
-            </Pressable>
+
+              <Pressable
+                onPress={() => onRemove(photo.uri)}
+                style={styles.removeButton}
+                hitSlop={8}
+              >
+                <Feather name="x" size={16} color={colors.white} />
+              </Pressable>
+            </View>
           ))}
         </ScrollView>
       )}
@@ -135,6 +139,7 @@ const styles = StyleSheet.create({
   },
 
   photoThumbWrap: {
+    position: "relative",
     marginRight: 10,
   },
 
@@ -143,5 +148,19 @@ const styles = StyleSheet.create({
     height: 88,
     borderRadius: 16,
     backgroundColor: "#DDE3F0",
+  },
+
+  removeButton: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colors.danger || "#E53935",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.white,
   },
 });

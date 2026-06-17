@@ -1,6 +1,6 @@
-import api from "./api";
+import api from "../../../services/api";
 import * as ImagePicker from "expo-image-picker";
-import type { MaintenanceTicket } from "../types/ticket";
+import type { MaintenanceTicket } from "../../../types/ticket";
 
 export type CreateTicketPayload = {
   title: string;
@@ -15,12 +15,37 @@ export type CreateTicketPayload = {
 
 type UploadFile = {
   uri: string;
-  name: string;
-  type: string;
+  name?: string;
+  type?: string;
+};
+
+const getAssetFileName = (
+  asset: ImagePicker.ImagePickerAsset,
+  index: number
+) => {
+  if (asset.fileName) return asset.fileName;
+
+  const extension = asset.uri.split(".").pop()?.split("?")[0] || "jpg";
+
+  return `ticket-photo-${Date.now()}-${index}.${extension}`;
+};
+
+const getAssetMimeType = (asset: ImagePicker.ImagePickerAsset) => {
+  if (asset.mimeType) return asset.mimeType;
+
+  const uri = asset.uri.toLowerCase();
+
+  if (uri.endsWith(".png")) return "image/png";
+  if (uri.endsWith(".webp")) return "image/webp";
+  if (uri.endsWith(".heic")) return "image/heic";
+
+  return "image/jpeg";
 };
 
 export const ticketService = {
-  createTicket: async (data: CreateTicketPayload) => {
+  createTicket: async (
+    data: CreateTicketPayload
+  ): Promise<MaintenanceTicket> => {
     const formData = new FormData();
 
     formData.append("title", data.title);
@@ -38,18 +63,18 @@ export const ticketService = {
     }
 
     if (data.files && data.files.length > 0) {
-      data.files.forEach((file) => {
+      data.files.forEach((file, index) => {
         formData.append("files", {
           uri: file.uri,
-          name: file.fileName || `ticket-${Date.now()}.jpg`,
-          type: file.mimeType || "image/jpeg",
+          name: getAssetFileName(file, index),
+          type: getAssetMimeType(file),
         } as any);
       });
     }
 
     const response = await api.post("/tickets", formData, {
       headers: {
-        "Content-Type": "multipart/form-data",
+        Accept: "application/json",
       },
     });
 
@@ -61,17 +86,32 @@ export const ticketService = {
     return response.data?.data ?? response.data;
   },
 
-  uploadAttachment: async (ticketId: number, file: UploadFile) => {
+  uploadAttachment: async (
+    ticketId: number,
+    file: UploadFile,
+    photoType = "AFTER",
+    caption?: string
+  ) => {
     const formData = new FormData();
 
-    formData.append("file", file as any);
+    formData.append("file", {
+      uri: file.uri,
+      name: file.name || `attachment-${Date.now()}.jpg`,
+      type: file.type || "image/jpeg",
+    } as any);
+
+    formData.append("photoType", photoType);
+
+    if (caption) {
+      formData.append("caption", caption);
+    }
 
     const response = await api.post(
       `/tickets/${ticketId}/attachments`,
       formData,
       {
         headers: {
-          "Content-Type": "multipart/form-data",
+          Accept: "application/json",
         },
       }
     );

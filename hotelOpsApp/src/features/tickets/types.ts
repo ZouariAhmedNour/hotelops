@@ -4,7 +4,7 @@ export type LocationItem = {
   id: number;
   name: string;
   code: string;
-  type: string;
+  type: "ROOM" | "FLOOR" | "COMMON_AREA" | "SERVICE_AREA" | "OUTDOOR" | "PARKING" | "OTHER" | string;
   zone?: string | null;
   floor?: string | null;
   roomNumber?: string | null;
@@ -12,7 +12,7 @@ export type LocationItem = {
   isActive?: boolean;
 };
 
-export type PriorityCode = "critical" | "high" | "medium" | "low";
+export type PriorityCode = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
 
 export type PriorityItem = {
   id: number;
@@ -25,7 +25,6 @@ export type PriorityItem = {
 export type CategoryItem = {
   id: number;
   name: string;
-  description?: string | null;
   icon?: string | null;
   isActive?: boolean;
 };
@@ -38,5 +37,5 @@ export type CreateTicketPayload = {
   priorityId: number;
   reportedFrom: "mobile";
   urgencyLevel: number;
-  files: ImagePicker.ImagePickerAsset[];
+  files?: ImagePicker.ImagePickerAsset[];
 };

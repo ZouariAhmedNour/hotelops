@@ -42,31 +42,41 @@ export function useTicketFormData() {
     try {
       setLoadingData(true);
 
-      const [locationsRes, prioritiesRes, categoriesRes] = await Promise.all([
-        locationService.getAll(),
-        priorityService.getAll(),
-        categoryService.getAll(),
-      ]);
+      const [locationsData, prioritiesData, categoriesData] =
+        await Promise.all([
+          locationService.getAll(),
+          priorityService.getAll(),
+          categoryService.getAll(),
+        ]);
 
-      const locationsData = locationsRes.data?.data ?? locationsRes.data ?? [];
-      const prioritiesData = prioritiesRes.data?.data ?? prioritiesRes.data ?? [];
-      const categoriesData = categoriesRes.data?.data ?? categoriesRes.data ?? [];
+      const activeLocations = locationsData.filter(
+        (item) => item.isActive !== false
+      );
 
-      setLocations(locationsData);
+      const activeCategories = categoriesData.filter(
+        (item) => item.isActive !== false
+      );
+
+      setLocations(activeLocations);
       setPriorities(prioritiesData);
-      setCategories(categoriesData);
+      setCategories(activeCategories);
 
-      if (locationsData.length > 0) {
-        setLocationId(locationsData[0].id);
+      if (activeLocations.length > 0) {
+        setLocationId(activeLocations[0].id);
       }
 
-      if (categoriesData.length > 0) {
-        setCategoryId(categoriesData[0].id);
+      if (activeCategories.length > 0) {
+        setCategoryId(activeCategories[0].id);
       }
 
       if (prioritiesData.length > 0) {
-        setPriorityId(prioritiesData[0].id);
-        setUrgencyLevel(prioritiesData[0].sortOrder ?? 3);
+        const defaultPriority =
+          prioritiesData.find(
+            (item) => String(item.code).toUpperCase() === "MEDIUM"
+          ) || prioritiesData[0];
+
+        setPriorityId(defaultPriority.id);
+        setUrgencyLevel(defaultPriority.sortOrder ?? 3);
       }
     } catch (error: any) {
       console.log("LOAD ERROR =", error?.response?.data || error.message);

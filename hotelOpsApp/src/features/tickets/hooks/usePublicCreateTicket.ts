@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 
-import { CreateTicketPayload, ticketService } from "../api/ticketService";
+import {
+  publicQrService,
+  type CreatePublicTicketPayload,
+} from  "../api/publicQrService";
 
-export function useCreateTicket() {
-  const [details, setDetails] = useState("");
+export function usePublicCreateTicket() {
   const [photos, setPhotos] = useState<ImagePicker.ImagePickerAsset[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const pickFromCamera = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -50,47 +52,39 @@ export function useCreateTicket() {
     setPhotos((prev) => prev.filter((item) => item.uri !== uri));
   };
 
-  const submitTicket = async (
-    payload: Omit<CreateTicketPayload, "description" | "files">
+  const submitPublicTicket = async (
+    payload: Omit<CreatePublicTicketPayload, "files">
   ) => {
-    if (!details.trim()) {
-      Alert.alert("Erreur", "Ajoute une description.");
-      return false;
-    }
-
     try {
-      setLoading(true);
+      setSubmitting(true);
 
-      await ticketService.createTicket({
+      const ticket = await publicQrService.createTicket({
         ...payload,
-        description: details.trim(),
         files: photos,
       });
 
-      Alert.alert("Succès", "Ticket créé avec succès");
-
-      return true;
+      return ticket;
     } catch (error: any) {
-      console.log("CREATE ERROR =", error?.response?.data || error.message);
+      console.log(
+        "PUBLIC CREATE ERROR =",
+        error?.response?.data || error.message
+      );
 
-      Alert.alert("Erreur", "Impossible de créer le ticket");
+      Alert.alert("Erreur", "Impossible de créer le ticket.");
 
-      return false;
+      return null;
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
   return {
-    details,
-    setDetails,
-
     photos,
     pickFromCamera,
     pickFromGallery,
     removePhoto,
 
-    loading,
-    submitTicket,
+    submitting,
+    submitPublicTicket,
   };
 }

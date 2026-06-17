@@ -16,7 +16,7 @@ import { Feather } from "@expo/vector-icons";
 
 import { colors } from "../../../theme/colors";
 import { extractQrToken } from "../utils/qrToken";
-import { publicQrService } from "../../../services/publicQrService";
+import { publicQrService } from "../api/publicQrService";
 
 export default function QrScannerScreen({ navigation }: any) {
   const [permission, requestPermission] = useCameraPermissions();
