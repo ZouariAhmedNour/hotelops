@@ -6,6 +6,20 @@ import { registry } from "../config/swagger";
 
 const router = Router();
 
+const agentSkillSchema = z.object({
+  skillId: z.number().int().positive(),
+  level: z.number().int().min(1).max(5),
+});
+
+const agentCertificationSchema = z.object({
+  certificationId: z.number().int().positive(),
+  issuedAt: z.string().optional(),
+  expiresAt: z.string().optional(),
+  provider: z.string().optional(),
+  certificateNumber: z.string().optional(),
+  status: z.enum(["VALID", "EXPIRED", "PENDING", "REVOKED"]).optional(),
+});
+
 const createAgentSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -13,15 +27,22 @@ const createAgentSchema = z.object({
   phone: z.string().optional(),
   password: z.string().min(8),
 
-  teamId: z.coerce.number().optional(),
+  teamId: z.number().int().positive().optional(),
   employeeCode: z.string().optional(),
+
   level: z.enum(["JUNIOR", "CONFIRMED", "SENIOR", "EXPERT"]),
   shift: z.enum(["DAY", "NIGHT", "MORNING", "AFTERNOON", "ON_CALL"]),
+
   availabilityStatus: z.string().optional(),
   mainSpecialty: z.string().optional(),
+
   canHandleCritical: z.boolean().optional(),
-  maxActiveTickets: z.coerce.number().optional(),
-  skillIds: z.array(z.coerce.number()).optional(),
+  maxActiveTickets: z.number().int().min(1).optional(),
+
+  skills: z.array(agentSkillSchema).optional(),
+  skillIds: z.array(z.number().int().positive()).optional(),
+
+  certifications: z.array(agentCertificationSchema).optional(),
 });
 
 const updateAgentSchema = createAgentSchema
@@ -32,7 +53,7 @@ const updateAgentSchema = createAgentSchema
   .partial()
   .extend({
     isActive: z.boolean().optional(),
-    teamId: z.coerce.number().nullable().optional(),
+    teamId: z.number().int().positive().nullable().optional(),
   });
 
 const recommendationQuerySchema = z.object({
@@ -84,7 +105,8 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "Liste des agents recommandés selon le ticket ou les critères",
+      description:
+        "Agents éligibles, agents bloqués et analyse de sécurité du ticket.",
     },
   },
 });
@@ -102,9 +124,6 @@ registry.registerPath({
   responses: {
     200: {
       description: "Détail d’un agent maintenance",
-    },
-    404: {
-      description: "Agent introuvable",
     },
   },
 });
@@ -158,11 +177,7 @@ router.get(
   agentController.recommendations
 );
 
-router.get(
-  "/",
-  authorize("ADMIN", "CHEF_MAINT"),
-  agentController.list
-);
+router.get("/", authorize("ADMIN", "CHEF_MAINT"), agentController.list);
 
 router.get(
   "/:id",
@@ -170,22 +185,10 @@ router.get(
   agentController.getById
 );
 
-router.post(
-  "/",
-  authorize("ADMIN"),
-  agentController.create
-);
+router.post("/", authorize("ADMIN"), agentController.create);
 
-router.put(
-  "/:id",
-  authorize("ADMIN"),
-  agentController.update
-);
+router.put("/:id", authorize("ADMIN"), agentController.update);
 
-router.delete(
-  "/:id",
-  authorize("ADMIN"),
-  agentController.remove
-);
+router.delete("/:id", authorize("ADMIN"), agentController.remove);
 
 export default router;

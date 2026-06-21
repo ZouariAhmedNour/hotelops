@@ -3,6 +3,43 @@ import { z } from "zod";
 import { agentService } from "../services/agentService";
 import { success } from "../utils/response";
 
+const optionalDate = z.preprocess(
+  (value) => {
+    if (value === "" || value === null) return undefined;
+    return value;
+  },
+  z.coerce.date().optional()
+);
+
+const agentSkillSchema = z.object({
+  skillId: z.coerce.number().int().positive(),
+  level: z.coerce.number().int().min(1).max(5),
+});
+
+const agentCertificationSchema = z
+  .object({
+    certificationId: z.coerce.number().int().positive(),
+    issuedAt: optionalDate,
+    expiresAt: optionalDate,
+    provider: z.string().optional(),
+    certificateNumber: z.string().optional(),
+    status: z.enum(["VALID", "EXPIRED", "PENDING", "REVOKED"]).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (
+      value.issuedAt &&
+      value.expiresAt &&
+      value.expiresAt.getTime() < value.issuedAt.getTime()
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "La date d’expiration doit être postérieure à la date d’obtention.",
+        path: ["expiresAt"],
+      });
+    }
+  });
+
 const createAgentSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().min(1),
@@ -10,15 +47,25 @@ const createAgentSchema = z.object({
   phone: z.string().optional(),
   password: z.string().min(8),
 
-  teamId: z.coerce.number().optional(),
+  teamId: z.coerce.number().int().positive().optional(),
   employeeCode: z.string().optional(),
+
   level: z.enum(["JUNIOR", "CONFIRMED", "SENIOR", "EXPERT"]),
   shift: z.enum(["DAY", "NIGHT", "MORNING", "AFTERNOON", "ON_CALL"]),
+
   availabilityStatus: z.string().optional(),
   mainSpecialty: z.string().optional(),
+
   canHandleCritical: z.boolean().optional(),
-  maxActiveTickets: z.coerce.number().optional(),
-  skillIds: z.array(z.coerce.number()).optional(),
+  maxActiveTickets: z.coerce.number().int().min(1).optional(),
+
+  // Nouveau format recommandé
+  skills: z.array(agentSkillSchema).optional(),
+
+  // Compatibilité ancienne version
+  skillIds: z.array(z.coerce.number().int().positive()).optional(),
+
+  certifications: z.array(agentCertificationSchema).optional(),
 });
 
 const updateAgentSchema = createAgentSchema
@@ -29,7 +76,7 @@ const updateAgentSchema = createAgentSchema
   .partial()
   .extend({
     isActive: z.boolean().optional(),
-    teamId: z.coerce.number().nullable().optional(),
+    teamId: z.coerce.number().int().positive().nullable().optional(),
   });
 
 const recommendationSchema = z.object({
@@ -60,7 +107,9 @@ export const agentController = {
   create: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const body = createAgentSchema.parse(req.body);
+
       const agent = await agentService.create(body);
+
       return success(res, agent, "Agent créé avec succès", 201);
     } catch (err) {
       next(err);
@@ -70,7 +119,9 @@ export const agentController = {
   update: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const body = updateAgentSchema.parse(req.body);
+
       const agent = await agentService.update(Number(req.params.id), body);
+
       return success(res, agent, "Agent modifié avec succès");
     } catch (err) {
       next(err);
@@ -86,10 +137,16 @@ export const agentController = {
     }
   },
 
-  recommendations: async (req: Request, res: Response, next: NextFunction) => {
+  recommendations: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const params = recommendationSchema.parse(req.query);
+
       const recommendations = await agentService.getRecommendations(params);
+
       return success(res, recommendations);
     } catch (err) {
       next(err);

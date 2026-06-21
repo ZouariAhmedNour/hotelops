@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma";
+import { assessTicketSafety, evaluateAgentSafetyEligibility, persistTicketRiskAssessment } from "./safetyAssessmentService";
 
 export type CreateTicketInput = {
   title: string;
@@ -58,6 +59,9 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
   validatedBy: {
     select: userSelect,
   },
+
+  riskAssessment: true,
+
   _count: {
     select: {
       comments: true,
@@ -157,10 +161,29 @@ export const createTicket = async (
   const ticketNumber = await generateTicketNumber();
 
   const [location, category, priority, user] = await Promise.all([
-    prisma.location.findUnique({ where: { id: data.locationId } }),
-    prisma.maintenanceCategory.findUnique({ where: { id: data.categoryId } }),
-    prisma.maintenancePriority.findUnique({ where: { id: data.priorityId } }),
-    prisma.user.findUnique({ where: { id: userId } }),
+    prisma.location.findUnique({
+      where: {
+        id: data.locationId,
+      },
+    }),
+
+    prisma.maintenanceCategory.findUnique({
+      where: {
+        id: data.categoryId,
+      },
+    }),
+
+    prisma.maintenancePriority.findUnique({
+      where: {
+        id: data.priorityId,
+      },
+    }),
+
+    prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    }),
   ]);
 
   if (!location) {
@@ -187,6 +210,15 @@ export const createTicket = async (
     });
   }
 
+  const safetyAssessment = await assessTicketSafety({
+    title: data.title,
+    description: data.description,
+    urgencyLevel: data.urgencyLevel,
+    category,
+    priority,
+    location,
+  });
+
   let dueAt: Date | null = null;
 
   if (priority.slaHours) {
@@ -198,7 +230,9 @@ export const createTicket = async (
   if (!initialStatus) {
     throw Object.assign(
       new Error("Statut initial introuvable. Créez NEW ou OPEN dans la base."),
-      { statusCode: 500 }
+      {
+        statusCode: 500,
+      }
     );
   }
 
@@ -208,16 +242,20 @@ export const createTicket = async (
         ticketNumber,
         title: data.title,
         description: data.description,
+
         locationId: data.locationId,
         categoryId: data.categoryId,
         priorityId: data.priorityId,
         statusId: initialStatus.id,
+
         reportedByUserId: userId,
         reportedFrom: data.reportedFrom,
         urgencyLevel: data.urgencyLevel,
         dueAt,
       },
     });
+
+    await persistTicketRiskAssessment(tx, ticket.id, safetyAssessment);
 
     if (files.length > 0) {
       await tx.maintenanceAttachment.createMany({
@@ -243,19 +281,28 @@ export const createTicket = async (
         metadata: {
           ticketNumber,
           reportedFrom: data.reportedFrom ?? null,
+          riskLevel: safetyAssessment.riskLevel,
+          riskScore: safetyAssessment.riskScore,
+          requiresCertifiedAgent:
+            safetyAssessment.requiresCertifiedAgent,
         },
       },
     });
 
     const created = await tx.maintenanceTicket.findUnique({
-      where: { id: ticket.id },
+      where: {
+        id: ticket.id,
+      },
       include: ticketDetailInclude,
     });
 
     if (!created) {
-      throw Object.assign(new Error("Ticket introuvable après création"), {
-        statusCode: 500,
-      });
+      throw Object.assign(
+        new Error("Ticket introuvable après création"),
+        {
+          statusCode: 500,
+        }
+      );
     }
 
     return created;
@@ -390,9 +437,14 @@ export const assignTicket = async (
   note?: string
 ) => {
   const ticket = await prisma.maintenanceTicket.findUnique({
-    where: { id: ticketId },
+    where: {
+      id: ticketId,
+    },
     include: {
       status: true,
+      category: true,
+      priority: true,
+      location: true,
     },
   });
 
@@ -403,10 +455,27 @@ export const assignTicket = async (
   }
 
   const assignedUser = await prisma.user.findUnique({
-    where: { id: assignedToUserId },
+    where: {
+      id: assignedToUserId,
+    },
     include: {
       role: true,
-      agentProfile: true,
+
+      agentProfile: {
+        include: {
+          skills: {
+            include: {
+              skill: true,
+            },
+          },
+
+          certifications: {
+            include: {
+              certification: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -418,21 +487,115 @@ export const assignTicket = async (
 
   if (assignedUser.role.code !== "MAINTENANCE_AGENT") {
     throw Object.assign(
-      new Error("L'utilisateur sélectionné n'est pas un agent de maintenance"),
-      { statusCode: 400 }
+      new Error(
+        "L'utilisateur sélectionné n'est pas un agent de maintenance."
+      ),
+      {
+        statusCode: 400,
+      }
     );
   }
 
-  const assignedStatus = await findStatusByCodes(["ASSIGNED", "OPEN", "NEW"]);
+  if (!assignedUser.agentProfile) {
+    throw Object.assign(
+      new Error("Le profil technique de cet agent est introuvable."),
+      {
+        statusCode: 400,
+      }
+    );
+  }
+
+  const safetyAssessment = await assessTicketSafety({
+    title: ticket.title,
+    description: ticket.description,
+    urgencyLevel: ticket.urgencyLevel,
+    category: ticket.category,
+    priority: ticket.priority,
+    location: ticket.location,
+  });
+
+  const safetyEligibility = evaluateAgentSafetyEligibility(
+    assignedUser.agentProfile,
+    safetyAssessment
+  );
+
+  if (!safetyEligibility.safetyEligible) {
+    await prisma.$transaction(async (tx) => {
+      await persistTicketRiskAssessment(
+        tx,
+        ticketId,
+        safetyAssessment
+      );
+
+      await tx.maintenanceTicketEvent.create({
+        data: {
+          ticketId,
+          userId: assignedByUserId,
+          type: "ASSIGNMENT_BLOCKED_SAFETY",
+          fromStatusId: ticket.statusId,
+          toStatusId: ticket.statusId,
+          message:
+            "Assignation refusée : exigences de sécurité non respectées.",
+          metadata: {
+            assignedToUserId,
+            riskLevel: safetyAssessment.riskLevel,
+            riskScore: safetyAssessment.riskScore,
+
+            missingSkillCodes: safetyEligibility.missingSkills.map(
+              (item) => item.code
+            ),
+
+            missingCertificationCodes:
+              safetyEligibility.missingCertifications.map(
+                (item) => item.code
+              ),
+
+            expiredCertificationCodes:
+              safetyEligibility.expiredCertifications.map(
+                (item) => item.code
+              ),
+
+            criticalAuthorizationMissing:
+              safetyEligibility.criticalAuthorizationMissing,
+          },
+        },
+      });
+    });
+
+    const error = Object.assign(
+      new Error(
+        "Assignation refusée : l’agent ne possède pas les certifications obligatoires pour cette intervention."
+      ),
+      {
+        statusCode: 422,
+        code: "SAFETY_ASSIGNMENT_BLOCKED",
+        details: safetyEligibility,
+      }
+    );
+
+    throw error;
+  }
+
+  const assignedStatus = await findStatusByCodes([
+    "ASSIGNED",
+    "OPEN",
+    "NEW",
+  ]);
 
   if (!assignedStatus) {
     throw Object.assign(
-      new Error("Statut ASSIGNED introuvable. Créez ASSIGNED dans la base."),
-      { statusCode: 500 }
+      new Error(
+        "Statut ASSIGNED introuvable. Créez ASSIGNED dans la base."
+      ),
+      {
+        statusCode: 500,
+      }
     );
   }
 
   return prisma.$transaction(async (tx) => {
+    await persistTicketRiskAssessment(tx, ticketId, safetyAssessment);
+
     await tx.maintenanceAssignment.updateMany({
       where: {
         ticketId,
@@ -460,14 +623,21 @@ export const assignTicket = async (
         fromStatusId: ticket.statusId,
         toStatusId: assignedStatus.id,
         message: note || "Ticket assigné",
+
         metadata: {
           assignedToUserId,
+          riskLevel: safetyAssessment.riskLevel,
+          riskScore: safetyAssessment.riskScore,
+          requiresCertifiedAgent:
+            safetyAssessment.requiresCertifiedAgent,
         },
       },
     });
 
     return tx.maintenanceTicket.update({
-      where: { id: ticketId },
+      where: {
+        id: ticketId,
+      },
       data: {
         assignedToUserId,
         statusId: assignedStatus.id,

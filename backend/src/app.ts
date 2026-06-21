@@ -18,6 +18,8 @@ import agentRoutes from "./routes/agentRoutes";
 import agentMobileRoutes from './routes/agentMobileRoutes';
 import publicTicketRoutes from './routes/publicTicketRoutes';
 import locationQrCodeRoutes from './routes/locationQrCodeRoutes';
+import safetyRuleRoutes from './routes/safetyRuleRoutes';
+import certificationRoutes from './routes/certificationRoutes';
 
 const app = express();
 
@@ -44,6 +46,9 @@ app.use("/api/agent", agentMobileRoutes);
 
 app.use("/api/location-qr-codes", locationQrCodeRoutes);
 app.use("/api/public", publicTicketRoutes);
+
+app.use("/api/certifications", certificationRoutes);
+app.use("/api/safety-rules", safetyRuleRoutes);
 
 // Swagger
 setupSwagger(app);
