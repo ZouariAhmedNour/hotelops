@@ -60,22 +60,22 @@ model User {
 // ============================================================
 
 model Location {
-  id          Int      @id @default(autoincrement())
+  id Int @id @default(autoincrement())
 
-  name        String
-  code        String   @unique
+  name String
+  code String @unique
 
-  type        String   // ROOM | FLOOR | COMMON_AREA | SERVICE_AREA | OUTDOOR | PARKING | OTHER
-  zone        String?  // Hébergement | Réception | Loisirs | Service | Extérieur
-  floor       String?  // RDC | 1 | 2 | 3 | Sous-sol | Extérieur
+  type  String // ROOM | FLOOR | COMMON_AREA | SERVICE_AREA | OUTDOOR | PARKING | OTHER
+  zone  String? // Hébergement | Réception | Loisirs | Service | Extérieur
+  floor String? // RDC | 1 | 2 | 3 | Sous-sol | Extérieur
 
   roomNumber  String?
   description String?
 
-  isActive    Boolean  @default(true)
+  isActive Boolean @default(true)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @default(now()) @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   tickets MaintenanceTicket[]
   qrCodes LocationQrCode[]
@@ -91,7 +91,8 @@ model MaintenanceCategory {
   icon     String?
   isActive Boolean @default(true)
 
-  tickets MaintenanceTicket[]
+  tickets     MaintenanceTicket[]
+  safetyRules MaintenanceSafetyRule[]
 }
 
 model MaintenancePriority {
@@ -173,6 +174,8 @@ model MaintenanceTicket {
   assignments MaintenanceAssignment[]
   events      MaintenanceTicketEvent[]
   materials   MaintenanceInterventionMaterial[]
+
+  riskAssessment MaintenanceTicketRiskAssessment?
 }
 
 // ============================================================
@@ -288,7 +291,9 @@ model MaintenanceSkill {
   code     String  @unique
   isActive Boolean @default(true)
 
-  agents MaintenanceAgentSkill[]
+  agents                 MaintenanceAgentSkill[]
+  certificationLinks     MaintenanceCertificationSkill[]
+  safetyRuleRequirements MaintenanceSafetyRuleSkillRequirement[]
 }
 
 model MaintenanceAgentProfile {
@@ -309,7 +314,8 @@ model MaintenanceAgentProfile {
   user User             @relation(fields: [userId], references: [id])
   team MaintenanceTeam? @relation(fields: [teamId], references: [id])
 
-  skills MaintenanceAgentSkill[]
+  skills         MaintenanceAgentSkill[]
+  certifications MaintenanceAgentCertification[]
 }
 
 model MaintenanceAgentSkill {
@@ -318,10 +324,119 @@ model MaintenanceAgentSkill {
   skillId        Int
   level          Int @default(1)
 
-  agentProfile MaintenanceAgentProfile @relation(fields: [agentProfileId], references: [id])
+  agentProfile MaintenanceAgentProfile @relation(fields: [agentProfileId], references: [id], onDelete: Cascade)
   skill        MaintenanceSkill        @relation(fields: [skillId], references: [id])
 
   @@unique([agentProfileId, skillId])
+}
+
+// ============================================================
+// certification
+// ============================================================
+model MaintenanceCertification {
+  id             Int      @id @default(autoincrement())
+  name           String   @unique
+  code           String   @unique
+  description    String?
+  requiresExpiry Boolean  @default(false)
+  validityMonths Int?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  skillLinks             MaintenanceCertificationSkill[]
+  agentCertifications    MaintenanceAgentCertification[]
+  safetyRuleRequirements MaintenanceSafetyRuleCertificationRequirement[]
+}
+
+model MaintenanceCertificationSkill {
+  id              Int @id @default(autoincrement())
+  certificationId Int
+  skillId         Int
+
+  certification MaintenanceCertification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  skill         MaintenanceSkill         @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([certificationId, skillId])
+}
+
+model MaintenanceAgentCertification {
+  id                Int       @id @default(autoincrement())
+  agentProfileId    Int
+  certificationId   Int
+  issuedAt          DateTime?
+  expiresAt         DateTime?
+  provider          String?
+  certificateNumber String?
+  status            String    @default("PENDING")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  agentProfile  MaintenanceAgentProfile  @relation(fields: [agentProfileId], references: [id], onDelete: Cascade)
+  certification MaintenanceCertification @relation(fields: [certificationId], references: [id])
+
+  @@unique([agentProfileId, certificationId])
+}
+
+model MaintenanceSafetyRule {
+  id                     Int      @id @default(autoincrement())
+  name                   String
+  code                   String   @unique
+  description            String?
+  categoryId             Int?
+  triggerKeywords        String[] @default([])
+  riskLevel              String
+  riskScore              Int      @default(0)
+  requiresCertifiedAgent Boolean  @default(false)
+  minPriorityCode        String?
+  minUrgencyLevel        Int?
+  isActive               Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  category MaintenanceCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  skillRequirements         MaintenanceSafetyRuleSkillRequirement[]
+  certificationRequirements MaintenanceSafetyRuleCertificationRequirement[]
+}
+
+model MaintenanceSafetyRuleSkillRequirement {
+  id           Int @id @default(autoincrement())
+  safetyRuleId Int
+  skillId      Int
+  minimumLevel Int @default(1)
+
+  safetyRule MaintenanceSafetyRule @relation(fields: [safetyRuleId], references: [id], onDelete: Cascade)
+  skill      MaintenanceSkill      @relation(fields: [skillId], references: [id])
+
+  @@unique([safetyRuleId, skillId])
+}
+
+model MaintenanceSafetyRuleCertificationRequirement {
+  id              Int @id @default(autoincrement())
+  safetyRuleId    Int
+  certificationId Int
+
+  safetyRule    MaintenanceSafetyRule    @relation(fields: [safetyRuleId], references: [id], onDelete: Cascade)
+  certification MaintenanceCertification @relation(fields: [certificationId], references: [id])
+
+  @@unique([safetyRuleId, certificationId])
+}
+
+model MaintenanceTicketRiskAssessment {
+  id                         Int      @id @default(autoincrement())
+  ticketId                   Int      @unique
+  riskLevel                  String
+  riskScore                  Int
+  requiresCertifiedAgent     Boolean  @default(false)
+  requiredSkillCodes         String[] @default([])
+  requiredCertificationCodes String[] @default([])
+  safetyReasons              String[] @default([])
+  appliedRuleCodes           String[] @default([])
+  evaluatedAt                DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  ticket MaintenanceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 }
 
 // ============================================================
@@ -329,12 +444,12 @@ model MaintenanceAgentSkill {
 // ============================================================
 
 model LocationQrCode {
-  id         Int      @id @default(autoincrement())
+  id         Int     @id @default(autoincrement())
   locationId Int
-  token      String   @unique
+  token      String  @unique
   label      String?
   url        String
-  isActive   Boolean  @default(true)
+  isActive   Boolean @default(true)
 
   scanCount       Int       @default(0)
   lastScannedAt   DateTime?
