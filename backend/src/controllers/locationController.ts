@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
+import { z } from "zod";
+
 import * as locationService from "../services/locationService";
 import { success } from "../utils/response";
-import { z } from "zod";
 
 const locationTypeSchema = z.enum([
   "ROOM",
@@ -13,6 +14,14 @@ const locationTypeSchema = z.enum([
   "OTHER",
 ]);
 
+const locationAssetSchema = z.object({
+  assetId: z.coerce.number().int().positive(),
+  quantity: z.coerce.number().int().positive().optional(),
+  label: z.string().max(150).optional(),
+  notes: z.string().max(2000).optional(),
+  isActive: z.boolean().optional(),
+});
+
 const createSchema = z.object({
   name: z.string().min(2),
   code: z.string().min(2),
@@ -22,6 +31,7 @@ const createSchema = z.object({
   roomNumber: z.string().optional(),
   description: z.string().optional(),
   isActive: z.boolean().optional(),
+  assets: z.array(locationAssetSchema).max(100).optional(),
 });
 
 const updateSchema = createSchema.partial();
@@ -37,13 +47,13 @@ export const create = async (
     const location = await locationService.createLocation(data);
 
     return success(res, location, "Endroit créé avec succès", 201);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
 export const list = async (
-  req: Request,
+  _req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -51,8 +61,8 @@ export const list = async (
     const locations = await locationService.listLocations();
 
     return success(res, locations);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -62,11 +72,13 @@ export const getOne = async (
   next: NextFunction
 ) => {
   try {
-    const location = await locationService.getLocationById(Number(req.params.id));
+    const location = await locationService.getLocationById(
+      Number(req.params.id)
+    );
 
     return success(res, location);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -84,8 +96,8 @@ export const update = async (
     );
 
     return success(res, location, "Endroit mis à jour avec succès");
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -98,7 +110,7 @@ export const remove = async (
     await locationService.deleteLocation(Number(req.params.id));
 
     return success(res, null, "Endroit supprimé avec succès");
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };

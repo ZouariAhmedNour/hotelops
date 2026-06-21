@@ -1,17 +1,60 @@
-import { Router } from "express";
+import { NextFunction, Request, Response, Router } from "express";
 import { z } from "zod";
+
 import { publicTicketController } from "../controllers/publicTicketController";
+import { upload } from "../config/multer";
 import { registry } from "../config/swagger";
 
 const router = Router();
 
+const parseAssetIds = (value: unknown) => {
+  if (value === undefined || value === null || value === "") {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return trimmed.split(",").map((item) => item.trim());
+    }
+  }
+
+  return value;
+};
+
 const createPublicTicketSchema = z.object({
   token: z.string().min(10),
   description: z.string().min(5),
-  categoryId: z.coerce.number(),
-  priorityId: z.coerce.number(),
+  categoryId: z.coerce.number().int().positive(),
+  priorityId: z.coerce.number().int().positive(),
 
-  reporterType: z.enum(["CLIENT", "STAFF", "VISITOR", "OTHER", "ANONYMOUS"]),
+  assetIds: z.preprocess(
+    parseAssetIds,
+    z.array(z.coerce.number().int().positive()).max(30)
+  ),
+
+  reporterType: z.enum([
+    "CLIENT",
+    "STAFF",
+    "VISITOR",
+    "OTHER",
+    "ANONYMOUS",
+  ]),
 
   fullName: z.string().optional(),
   phone: z.string().optional(),
@@ -22,7 +65,7 @@ const createPublicTicketSchema = z.object({
 
 const validate =
   (schema: z.ZodSchema) =>
-  (req: any, res: any, next: any) => {
+  (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req.body);
 
     if (!result.success) {
@@ -48,7 +91,7 @@ registry.registerPath({
   },
   responses: {
     200: {
-      description: "Informations publiques du QR code",
+      description: "Informations publiques du QR code et équipements",
     },
     404: {
       description: "QR code invalide ou désactivé",
@@ -63,8 +106,33 @@ registry.registerPath({
   request: {
     body: {
       content: {
-        "application/json": {
-          schema: createPublicTicketSchema,
+        "multipart/form-data": {
+          schema: {
+            type: "object",
+            properties: {
+              token: { type: "string" },
+              description: { type: "string" },
+              categoryId: { type: "number" },
+              priorityId: { type: "number" },
+              reporterType: { type: "string" },
+              assetIds: {
+                type: "string",
+                example: "[1,2]",
+              },
+              fullName: { type: "string" },
+              phone: { type: "string" },
+              email: { type: "string" },
+              roomNumber: { type: "string" },
+              reservationCode: { type: "string" },
+              files: {
+                type: "array",
+                items: {
+                  type: "string",
+                  format: "binary",
+                },
+              },
+            },
+          },
         },
       },
     },
@@ -83,11 +151,13 @@ router.get("/qr/:token", publicTicketController.getQrInfo);
 
 router.post(
   "/tickets",
+  upload.array("files", 10),
   validate(createPublicTicketSchema),
   publicTicketController.createTicket
 );
 
 router.get("/categories", publicTicketController.getCategories);
+
 router.get("/priorities", publicTicketController.getPriorities);
 
 export default router;

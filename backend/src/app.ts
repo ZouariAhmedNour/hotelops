@@ -20,6 +20,7 @@ import publicTicketRoutes from './routes/publicTicketRoutes';
 import locationQrCodeRoutes from './routes/locationQrCodeRoutes';
 import safetyRuleRoutes from './routes/safetyRuleRoutes';
 import certificationRoutes from './routes/certificationRoutes';
+import assetRoutes from './routes/assetRoutes';
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 app.use('/api/auth', authRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/locations', locationRoutes);
+app.use("/api/assets", assetRoutes);
 app.use('/api/priorities',priorityRoutes);
 app.use('/api/categories', categoryRoutes);
 

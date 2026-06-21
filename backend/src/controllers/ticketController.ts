@@ -1,8 +1,39 @@
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import { z } from "zod";
+
 import * as ticketService from "../services/ticketService";
 import { success } from "../utils/response";
 import type { AuthRequest } from "../middleware/auth";
+
+const parseAssetIds = (value: unknown) => {
+  if (value === undefined || value === null || value === "") {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+
+    if (!trimmed) {
+      return [];
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed);
+
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    } catch {
+      return trimmed.split(",").map((item) => item.trim());
+    }
+  }
+
+  return value;
+};
 
 const createSchema = z.object({
   title: z.string().min(3),
@@ -12,6 +43,10 @@ const createSchema = z.object({
   priorityId: z.coerce.number().int().positive(),
   reportedFrom: z.string().optional(),
   urgencyLevel: z.coerce.number().int().min(1).max(5).optional(),
+  assetIds: z.preprocess(
+    parseAssetIds,
+    z.array(z.coerce.number().int().positive()).max(30)
+  ),
 });
 
 const assignSchema = z.object({
@@ -57,8 +92,8 @@ export const create = async (
     );
 
     return success(res, ticket, "Ticket créé", 201);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -69,9 +104,10 @@ export const list = async (
 ) => {
   try {
     const result = await ticketService.listTickets(req.query as any);
+
     return success(res, result);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -82,9 +118,10 @@ export const getOne = async (
 ) => {
   try {
     const ticket = await ticketService.getTicketById(Number(req.params.id));
+
     return success(res, ticket);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -110,8 +147,8 @@ export const assign = async (
     );
 
     return success(res, ticket, "Ticket assigné");
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -137,8 +174,8 @@ export const changeStatus = async (
     );
 
     return success(res, ticket, "Statut mis à jour");
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -164,8 +201,8 @@ export const addComment = async (
     );
 
     return success(res, comment, "Commentaire ajouté", 201);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -196,8 +233,8 @@ export const addAttachment = async (
     );
 
     return success(res, attachment, "Pièce jointe ajoutée", 201);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -222,8 +259,8 @@ export const addMaterial = async (
     );
 
     return success(res, material, "Matériel ajouté", 201);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -234,9 +271,10 @@ export const statsOverview = async (
 ) => {
   try {
     const stats = await ticketService.getStatsOverview();
+
     return success(res, stats);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -247,9 +285,10 @@ export const statsCharts = async (
 ) => {
   try {
     const charts = await ticketService.getStatsCharts();
+
     return success(res, charts);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -260,8 +299,9 @@ export const kanban = async (
 ) => {
   try {
     const kanbanData = await ticketService.getKanban();
+
     return success(res, kanbanData);
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    next(error);
   }
 };

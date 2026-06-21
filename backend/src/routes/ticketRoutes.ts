@@ -1,26 +1,16 @@
 import { Router } from "express";
 import { z } from "zod";
+
 import * as ticketController from "../controllers/ticketController";
 import {
   authenticate,
-  authorize,
-  requireManager,
   requireMaintenance,
+  requireManager,
 } from "../middleware/auth";
 import { upload } from "../config/multer";
 import { registry } from "../config/swagger";
 
 const router = Router();
-
-const createTicketSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  locationId: z.coerce.number(),
-  categoryId: z.coerce.number(),
-  priorityId: z.coerce.number(),
-  reportedFrom: z.string().optional(),
-  urgencyLevel: z.coerce.number().optional(),
-});
 
 const assignSchema = z.object({
   assignedToUserId: z.coerce.number(),
@@ -98,6 +88,10 @@ registry.registerPath({
               priorityId: { type: "number" },
               reportedFrom: { type: "string" },
               urgencyLevel: { type: "number" },
+              assetIds: {
+                type: "string",
+                example: "[1,2,3]",
+              },
               files: {
                 type: "array",
                 items: {
@@ -267,11 +261,7 @@ router.get("/stats/overview", requireManager, ticketController.statsOverview);
 router.get("/stats/charts", requireManager, ticketController.statsCharts);
 router.get("/kanban", requireManager, ticketController.kanban);
 
-router.post(
-  "/",
-  upload.array("files", 10),
-  ticketController.create
-);
+router.post("/", upload.array("files", 10), ticketController.create);
 
 router.get("/", requireManager, ticketController.list);
 router.get("/:id", ticketController.getOne);
@@ -284,19 +274,14 @@ router.patch(
   ticketController.changeStatus
 );
 
-router.post("/:id/comments", authenticate, ticketController.addComment);
+router.post("/:id/comments", ticketController.addComment);
 
 router.post(
   "/:id/attachments",
-  authenticate,
   upload.single("file"),
   ticketController.addAttachment
 );
 
-router.post(
-  "/:id/materials",
-  requireMaintenance,
-  ticketController.addMaterial
-);
+router.post("/:id/materials", requireMaintenance, ticketController.addMaterial);
 
 export default router;

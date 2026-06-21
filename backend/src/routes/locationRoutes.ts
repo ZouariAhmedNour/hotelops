@@ -1,10 +1,19 @@
 import { Router } from "express";
 import { z } from "zod";
+
 import * as locationController from "../controllers/locationController";
-import { authenticate, authorize } from "../middleware/auth";
 import { registry } from "../config/swagger";
+import { authenticate, authorize } from "../middleware/auth";
 
 const router = Router();
+
+const locationAssetSchema = z.object({
+  assetId: z.coerce.number(),
+  quantity: z.coerce.number().optional(),
+  label: z.string().optional(),
+  notes: z.string().optional(),
+  isActive: z.boolean().optional(),
+});
 
 const locationSchema = z.object({
   name: z.string(),
@@ -23,6 +32,7 @@ const locationSchema = z.object({
   roomNumber: z.string().optional(),
   description: z.string().optional(),
   isActive: z.boolean().optional(),
+  assets: z.array(locationAssetSchema).optional(),
 });
 
 registry.registerPath({
@@ -32,7 +42,7 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   responses: {
     200: {
-      description: "Liste des endroits",
+      description: "Liste des endroits avec équipements",
     },
   },
 });
@@ -120,32 +130,20 @@ router.use(authenticate);
 
 router.get(
   "/",
-  authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "USER"),
+  authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "MAINTENANCE_AGENT"),
   locationController.list
 );
 
 router.get(
   "/:id",
-  authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "USER"),
+  authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "MAINTENANCE_AGENT"),
   locationController.getOne
 );
 
-router.post(
-  "/",
-  authorize("ADMIN"),
-  locationController.create
-);
+router.post("/", authorize("ADMIN"), locationController.create);
 
-router.put(
-  "/:id",
-  authorize("ADMIN"),
-  locationController.update
-);
+router.put("/:id", authorize("ADMIN"), locationController.update);
 
-router.delete(
-  "/:id",
-  authorize("ADMIN"),
-  locationController.remove
-);
+router.delete("/:id", authorize("ADMIN"), locationController.remove);
 
 export default router;

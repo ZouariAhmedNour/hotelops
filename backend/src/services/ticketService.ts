@@ -1,6 +1,12 @@
 import { Prisma } from "@prisma/client";
+
 import { prisma } from "../config/prisma";
-import { assessTicketSafety, evaluateAgentSafetyEligibility, persistTicketRiskAssessment } from "./safetyAssessmentService";
+import {
+  assessTicketSafety,
+  evaluateAgentSafetyEligibility,
+  persistTicketRiskAssessment,
+} from "./safetyAssessmentService";
+import { validateAssetsForLocation } from "./assetService";
 
 export type CreateTicketInput = {
   title: string;
@@ -10,6 +16,7 @@ export type CreateTicketInput = {
   priorityId: number;
   reportedFrom?: string;
   urgencyLevel?: number;
+  assetIds?: number[];
 };
 
 export type ListTicketsQuery = {
@@ -50,17 +57,29 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
   category: true,
   priority: true,
   status: true,
+
   reportedBy: {
     select: userSelect,
   },
+
   assignedTo: {
     select: userSelect,
   },
+
   validatedBy: {
     select: userSelect,
   },
 
   riskAssessment: true,
+
+  ticketAssets: {
+    include: {
+      asset: true,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
 
   _count: {
     select: {
@@ -68,12 +87,14 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
       attachments: true,
       events: true,
       materials: true,
+      ticketAssets: true,
     },
   },
 };
 
 const ticketDetailInclude: Prisma.MaintenanceTicketInclude = {
   ...ticketInclude,
+
   comments: {
     include: {
       user: {
@@ -89,6 +110,7 @@ const ticketDetailInclude: Prisma.MaintenanceTicketInclude = {
       createdAt: "asc",
     },
   },
+
   attachments: {
     include: {
       uploadedBy: {
@@ -99,6 +121,7 @@ const ticketDetailInclude: Prisma.MaintenanceTicketInclude = {
       createdAt: "desc",
     },
   },
+
   assignments: {
     include: {
       assignedTo: {
@@ -112,6 +135,7 @@ const ticketDetailInclude: Prisma.MaintenanceTicketInclude = {
       assignedAt: "desc",
     },
   },
+
   events: {
     include: {
       user: {
@@ -127,6 +151,7 @@ const ticketDetailInclude: Prisma.MaintenanceTicketInclude = {
       createdAt: "asc",
     },
   },
+
   materials: {
     orderBy: {
       createdAt: "desc",
@@ -138,19 +163,18 @@ const normalizeStatusCode = (code: string) => code.trim().toUpperCase();
 
 const generateTicketNumber = async (): Promise<string> => {
   const count = await prisma.maintenanceTicket.count();
+
   return `TKT-${String(count + 1).padStart(6, "0")}`;
 };
 
 const findStatusByCodes = async (codes: string[]) => {
-  const status = await prisma.maintenanceStatus.findFirst({
+  return prisma.maintenanceStatus.findFirst({
     where: {
       code: {
         in: codes,
       },
     },
   });
-
-  return status;
 };
 
 export const createTicket = async (
@@ -210,6 +234,11 @@ export const createTicket = async (
     });
   }
 
+  const selectedAssetIds = await validateAssetsForLocation(
+    data.locationId,
+    data.assetIds ?? []
+  );
+
   const safetyAssessment = await assessTicketSafety({
     title: data.title,
     description: data.description,
@@ -240,8 +269,8 @@ export const createTicket = async (
     const ticket = await tx.maintenanceTicket.create({
       data: {
         ticketNumber,
-        title: data.title,
-        description: data.description,
+        title: data.title.trim(),
+        description: data.description.trim(),
 
         locationId: data.locationId,
         categoryId: data.categoryId,
@@ -254,6 +283,15 @@ export const createTicket = async (
         dueAt,
       },
     });
+
+    if (selectedAssetIds.length > 0) {
+      await tx.maintenanceTicketAsset.createMany({
+        data: selectedAssetIds.map((assetId) => ({
+          ticketId: ticket.id,
+          assetId,
+        })),
+      });
+    }
 
     await persistTicketRiskAssessment(tx, ticket.id, safetyAssessment);
 
@@ -281,6 +319,7 @@ export const createTicket = async (
         metadata: {
           ticketNumber,
           reportedFrom: data.reportedFrom ?? null,
+          assetIds: selectedAssetIds,
           riskLevel: safetyAssessment.riskLevel,
           riskScore: safetyAssessment.riskScore,
           requiresCertifiedAgent:
@@ -297,12 +336,9 @@ export const createTicket = async (
     });
 
     if (!created) {
-      throw Object.assign(
-        new Error("Ticket introuvable après création"),
-        {
-          statusCode: 500,
-        }
-      );
+      throw Object.assign(new Error("Ticket introuvable après création"), {
+        statusCode: 500,
+      });
     }
 
     return created;
@@ -321,9 +357,11 @@ export const listTickets = async (query: ListTicketsQuery) => {
 
   if (query.statusId) where.statusId = Number(query.statusId);
   if (query.priorityId) where.priorityId = Number(query.priorityId);
+
   if (query.assignedToUserId) {
     where.assignedToUserId = Number(query.assignedToUserId);
   }
+
   if (query.locationId) where.locationId = Number(query.locationId);
   if (query.categoryId) where.categoryId = Number(query.categoryId);
 
@@ -351,6 +389,7 @@ export const listTickets = async (query: ListTicketsQuery) => {
     where.dueAt = {
       lt: new Date(),
     };
+
     where.status = {
       isFinal: false,
     };
@@ -401,6 +440,7 @@ export const listTickets = async (query: ListTicketsQuery) => {
         [sortBy]: sortOrder,
       },
     }),
+
     prisma.maintenanceTicket.count({ where }),
   ]);
 
@@ -521,11 +561,7 @@ export const assignTicket = async (
 
   if (!safetyEligibility.safetyEligible) {
     await prisma.$transaction(async (tx) => {
-      await persistTicketRiskAssessment(
-        tx,
-        ticketId,
-        safetyAssessment
-      );
+      await persistTicketRiskAssessment(tx, ticketId, safetyAssessment);
 
       await tx.maintenanceTicketEvent.create({
         data: {
@@ -562,7 +598,7 @@ export const assignTicket = async (
       });
     });
 
-    const error = Object.assign(
+    throw Object.assign(
       new Error(
         "Assignation refusée : l’agent ne possède pas les certifications obligatoires pour cette intervention."
       ),
@@ -572,8 +608,6 @@ export const assignTicket = async (
         details: safetyEligibility,
       }
     );
-
-    throw error;
   }
 
   const assignedStatus = await findStatusByCodes([
@@ -584,9 +618,7 @@ export const assignTicket = async (
 
   if (!assignedStatus) {
     throw Object.assign(
-      new Error(
-        "Statut ASSIGNED introuvable. Créez ASSIGNED dans la base."
-      ),
+      new Error("Statut ASSIGNED introuvable. Créez ASSIGNED dans la base."),
       {
         statusCode: 500,
       }
@@ -623,7 +655,6 @@ export const assignTicket = async (
         fromStatusId: ticket.statusId,
         toStatusId: assignedStatus.id,
         message: note || "Ticket assigné",
-
         metadata: {
           assignedToUserId,
           riskLevel: safetyAssessment.riskLevel,
@@ -851,6 +882,7 @@ export const addMaterial = async (
 
 export const getStatsOverview = async () => {
   const now = new Date();
+
   const todayStart = new Date(
     now.getFullYear(),
     now.getMonth(),
@@ -942,7 +974,9 @@ export const getStatsOverview = async () => {
 
   if (resolutionData.length > 0) {
     const totalHours = resolutionData.reduce((acc, ticket) => {
-      if (!ticket.resolvedAt) return acc;
+      if (!ticket.resolvedAt) {
+        return acc;
+      }
 
       return (
         acc +
@@ -1023,12 +1057,14 @@ export const getStatsCharts = async () => {
       color: item.color,
       count: item._count.tickets,
     })),
+
     byPriority: byPriority.map((item) => ({
       id: item.id,
       name: item.name,
       code: item.code,
       count: item._count.tickets,
     })),
+
     byCategory: byCategory.map((item) => ({
       id: item.id,
       name: item.name,
