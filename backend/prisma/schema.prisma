@@ -77,8 +77,63 @@ model Location {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
-  tickets MaintenanceTicket[]
-  qrCodes LocationQrCode[]
+  tickets        MaintenanceTicket[]
+  qrCodes        LocationQrCode[]
+  locationAssets LocationAsset[]
+}
+
+// ============================================================
+// ÉQUIPEMENTS / ASSETS
+// ============================================================
+
+model MaintenanceAsset {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  category    String?
+  icon        String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  locationAssets LocationAsset[]
+  ticketAssets   MaintenanceTicketAsset[]
+
+  @@index([isActive])
+  @@index([category])
+}
+
+model LocationAsset {
+  id         Int      @id @default(autoincrement())
+  locationId Int
+  assetId    Int
+  quantity   Int      @default(1)
+  label      String?
+  notes      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  location Location         @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  asset    MaintenanceAsset @relation(fields: [assetId], references: [id])
+
+  @@unique([locationId, assetId])
+  @@index([locationId, isActive])
+  @@index([assetId])
+}
+
+model MaintenanceTicketAsset {
+  id        Int      @id @default(autoincrement())
+  ticketId  Int
+  assetId   Int
+  createdAt DateTime @default(now())
+
+  ticket MaintenanceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  asset  MaintenanceAsset  @relation(fields: [assetId], references: [id], onDelete: Restrict)
+
+  @@unique([ticketId, assetId])
+  @@index([assetId])
 }
 
 // ============================================================
@@ -169,11 +224,12 @@ model MaintenanceTicket {
   publicReporter PublicTicketReporter? @relation(fields: [publicReporterId], references: [id])
   qrCode         LocationQrCode?       @relation(fields: [qrCodeId], references: [id])
 
-  comments    MaintenanceComment[]
-  attachments MaintenanceAttachment[]
-  assignments MaintenanceAssignment[]
-  events      MaintenanceTicketEvent[]
-  materials   MaintenanceInterventionMaterial[]
+  comments     MaintenanceComment[]
+  attachments  MaintenanceAttachment[]
+  assignments  MaintenanceAssignment[]
+  events       MaintenanceTicketEvent[]
+  materials    MaintenanceInterventionMaterial[]
+  ticketAssets MaintenanceTicketAsset[]
 
   riskAssessment MaintenanceTicketRiskAssessment?
 }
@@ -205,7 +261,7 @@ model MaintenanceAttachment {
   fileName         String
   mimeType         String
   fileSize         Int
-  uploadedByUserId Int
+  uploadedByUserId Int?
 
   photoType String? // BEFORE | DURING | AFTER | PROOF
   caption   String?
@@ -213,7 +269,7 @@ model MaintenanceAttachment {
   createdAt DateTime @default(now())
 
   ticket     MaintenanceTicket @relation(fields: [ticketId], references: [id])
-  uploadedBy User              @relation(fields: [uploadedByUserId], references: [id])
+  uploadedBy User?             @relation(fields: [uploadedByUserId], references: [id])
 }
 
 // ============================================================
