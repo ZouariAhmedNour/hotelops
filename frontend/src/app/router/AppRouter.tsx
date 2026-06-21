@@ -32,6 +32,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import RoleGuard from "./RoleGuard";
 import AppLayout from "../../shared/components/layout/AppLayout";
 import LocationManagementPage from "../../features/locations/pages/LocationManagementPage";
+import MaintenanceCertificationsPage from "../../features/maintenance-staff/pages/MaintenanceCertificationsPage";
 
 const AppRouter = () => {
   return (
@@ -40,11 +41,12 @@ const AppRouter = () => {
         <Route path={ROUTES.LOGIN} element={<LoginPage />} />
         <Route path={ROUTES.SIGNUP} element={<SignupPage />} />
 
-
-
         <Route element={<ProtectedRoute />}>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+            <Route
+              path="/"
+              element={<Navigate to={ROUTES.DASHBOARD} replace />}
+            />
 
             <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
 
@@ -61,8 +63,14 @@ const AppRouter = () => {
               }
             >
               <Route path={ROUTES.TICKETS} element={<TicketListPage />} />
-              <Route path={ROUTES.TICKET_CREATE} element={<TicketCreatePage />} />
-              <Route path={ROUTES.TICKET_DETAIL} element={<TicketDetailPage />} />
+              <Route
+                path={ROUTES.TICKET_CREATE}
+                element={<TicketCreatePage />}
+              />
+              <Route
+                path={ROUTES.TICKET_DETAIL}
+                element={<TicketDetailPage />}
+              />
             </Route>
 
             <Route
@@ -76,7 +84,10 @@ const AppRouter = () => {
                 />
               }
             >
-              <Route path={ROUTES.HOUSEKEEPING} element={<HousekeepingPage />} />
+              <Route
+                path={ROUTES.HOUSEKEEPING}
+                element={<HousekeepingPage />}
+              />
             </Route>
 
             <Route
@@ -108,11 +119,20 @@ const AppRouter = () => {
             <Route element={<RoleGuard allowedRoles={[ROLES.ADMIN]} />}>
               <Route path={ROUTES.USERS} element={<UsersPage />} />
 
-              <Route path={ROUTES.LOCATIONS} element={<LocationManagementPage />} />
+              <Route
+                path={ROUTES.LOCATIONS}
+                element={<LocationManagementPage />}
+              />
 
-              <Route path={ROUTES.QR_CODES} element={<QrCodeManagementPage />} />
+              <Route
+                path={ROUTES.QR_CODES}
+                element={<QrCodeManagementPage />}
+              />
 
-              <Route path={ROUTES.QR_CODES} element={<QrCodeManagementPage />} />
+              <Route
+                path={ROUTES.QR_CODES}
+                element={<QrCodeManagementPage />}
+              />
 
               <Route
                 path={ROUTES.MAINTENANCE_STAFF}
@@ -132,6 +152,11 @@ const AppRouter = () => {
               <Route
                 path={ROUTES.MAINTENANCE_STAFF_SKILLS}
                 element={<MaintenanceSkillsPage />}
+              />
+
+              <Route
+                path={ROUTES.MAINTENANCE_STAFF_CERTIFICATIONS}
+                element={<MaintenanceCertificationsPage />}
               />
 
               <Route

@@ -22,7 +22,7 @@ const Sidebar = () => {
   );
 
   return (
-    <aside className="flex h-screen w-[290px] shrink-0 flex-col border-r border-slate-200 bg-white">
+    <aside className="flex h-full w-[290px] shrink-0 flex-col overflow-y-auto border-r border-slate-200 bg-white">
       <div className="px-6 pt-7">
         <div className="flex items-center gap-3">
           <BedDouble className="h-7 w-7 text-[#13234b]" />

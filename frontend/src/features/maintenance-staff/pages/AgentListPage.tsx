@@ -1,31 +1,48 @@
 import { useMemo, useState } from "react";
+
 import ErrorState from "../../../shared/components/feedback/ErrorState";
 import LoadingState from "../../../shared/components/feedback/LoadingState";
 import Input from "../../../shared/components/ui/Input";
+
 import AgentForm from "../components/AgentForm";
 import AgentTable from "../components/AgentTable";
-import { useMaintenanceStaffData } from "../hooks/useMaintenanceStaffData";
+
 import { maintenanceStaffService } from "../api/maintenanceStaff.service";
+import { useMaintenanceStaffData } from "../hooks/useMaintenanceStaffData";
+
 import type {
   MaintenanceAgentProfile,
   UpdateAgentPayload,
 } from "../types/maintenanceStaff.types";
 
 const AgentListPage = () => {
-  const { teams, skills, agents, loading, error, refetch } =
-    useMaintenanceStaffData();
+  const {
+    teams,
+    skills,
+    certifications,
+    agents,
+    loading,
+    error,
+    refetch,
+  } = useMaintenanceStaffData();
 
   const [query, setQuery] = useState("");
   const [teamFilter, setTeamFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
+
   const [editingAgent, setEditingAgent] =
     useState<MaintenanceAgentProfile | null>(null);
+
   const [message, setMessage] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const filteredAgents = useMemo(() => {
     return agents.filter((agent) => {
-      const fullName = `${agent.user.firstName} ${agent.user.lastName}`.toLowerCase();
+      const fullName =
+        `${agent.user.firstName} ${agent.user.lastName}`.toLowerCase();
+
       const email = agent.user.email.toLowerCase();
 
       const matchesQuery =
@@ -47,35 +64,58 @@ const AgentListPage = () => {
     try {
       setSubmitting(true);
       setMessage("");
+      setActionError("");
 
       await maintenanceStaffService.updateAgent(id, payload);
+
       setMessage("Agent modifié avec succès.");
       setEditingAgent(null);
 
-      await refetch();
+      await refetch(false);
+    } catch (err) {
+      console.error(err);
+
+      setActionError(
+        "Impossible de modifier l’agent. Vérifiez les compétences et certifications."
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Désactiver cet agent ?")) return;
+    const confirmed = window.confirm("Désactiver cet agent ?");
+
+    if (!confirmed) {
+      return;
+    }
 
     try {
       setSubmitting(true);
       setMessage("");
+      setActionError("");
 
       await maintenanceStaffService.deleteAgent(id);
+
       setMessage("Agent désactivé avec succès.");
 
-      await refetch();
+      await refetch(false);
+    } catch (err) {
+      console.error(err);
+
+      setActionError("Impossible de désactiver cet agent.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <LoadingState label="Chargement des agents..." />;
-  if (error) return <ErrorState message={error} />;
+  if (loading) {
+    return <LoadingState label="Chargement des agents..." />;
+  }
+
+  if (error) {
+    return <ErrorState message={error} />;
+  }
 
   return (
     <div className="space-y-8">
@@ -89,7 +129,7 @@ const AgentListPage = () => {
         </h1>
 
         <p className="mt-2 text-slate-500">
-          Consultez, filtrez, modifiez ou désactivez les agents maintenance.
+          Consultez et modifiez les compétences, certifications et disponibilités.
         </p>
       </div>
 
@@ -99,16 +139,24 @@ const AgentListPage = () => {
         </div>
       )}
 
-      {editingAgent && (
-        <AgentForm
-          teams={teams}
-          skills={skills}
-          submitting={submitting}
-          editingAgent={editingAgent}
-          onUpdate={handleUpdate}
-          onCancelEdit={() => setEditingAgent(null)}
-        />
+      {actionError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
       )}
+
+      {editingAgent && (
+  <AgentForm
+    key={editingAgent.id}
+    teams={teams}
+    skills={skills}
+    certifications={certifications}
+    submitting={submitting}
+    editingAgent={editingAgent}
+    onUpdate={handleUpdate}
+    onCancelEdit={() => setEditingAgent(null)}
+  />
+)}
 
       <div className="grid gap-4 rounded-3xl bg-white p-4 shadow-[0_2px_20px_rgba(15,23,42,0.06)] md:grid-cols-3">
         <Input
@@ -129,6 +177,7 @@ const AgentListPage = () => {
             className="h-[52px] w-full rounded-2xl border border-slate-200 px-4 outline-none focus:border-[#13234b]"
           >
             <option value="">Toutes les équipes</option>
+
             {teams.map((team) => (
               <option key={team.id} value={team.id}>
                 {team.name}

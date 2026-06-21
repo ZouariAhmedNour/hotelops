@@ -109,6 +109,13 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
         path: ROUTES.MAINTENANCE_STAFF_SKILLS,
         allowedRoles: [ROLES.ADMIN],
       },
+
+      {
+        label: "Certifications",
+        path: ROUTES.MAINTENANCE_STAFF_CERTIFICATIONS,
+        allowedRoles: [ROLES.ADMIN],
+      },
+
       {
         label: "Créer agent",
         path: ROUTES.MAINTENANCE_STAFF_AGENT_CREATE,
@@ -129,18 +136,18 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     allowedRoles: [ROLES.ADMIN, ROLES.CHEF_MAINT, ROLES.FINANCE],
   },
 
-{
-  label: "Endroits",
-  path: ROUTES.LOCATIONS,
-  icon: MapPinned,
-  section: "administration",
-  allowedRoles: [ROLES.ADMIN],
-},
-{
-  label: "Codes QR",
-  path: ROUTES.QR_CODES,
-  icon: QrCode,
-  section: "administration",
-  allowedRoles: [ROLES.ADMIN],
-},
+  {
+    label: "Endroits",
+    path: ROUTES.LOCATIONS,
+    icon: MapPinned,
+    section: "administration",
+    allowedRoles: [ROLES.ADMIN],
+  },
+  {
+    label: "Codes QR",
+    path: ROUTES.QR_CODES,
+    icon: QrCode,
+    section: "administration",
+    allowedRoles: [ROLES.ADMIN],
+  },
 ];

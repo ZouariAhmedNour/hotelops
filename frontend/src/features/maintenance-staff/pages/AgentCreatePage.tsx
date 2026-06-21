@@ -1,33 +1,58 @@
 import { useState } from "react";
+
 import ErrorState from "../../../shared/components/feedback/ErrorState";
 import LoadingState from "../../../shared/components/feedback/LoadingState";
+
 import AgentForm from "../components/AgentForm";
-import { useMaintenanceStaffData } from "../hooks/useMaintenanceStaffData";
+
 import { maintenanceStaffService } from "../api/maintenanceStaff.service";
+import { useMaintenanceStaffData } from "../hooks/useMaintenanceStaffData";
+
 import type { CreateAgentPayload } from "../types/maintenanceStaff.types";
 
 const AgentCreatePage = () => {
-  const { teams, skills, loading, error, refetch } = useMaintenanceStaffData();
+  const {
+    teams,
+    skills,
+    certifications,
+    loading,
+    error,
+    refetch,
+  } = useMaintenanceStaffData();
 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const handleCreate = async (payload: CreateAgentPayload) => {
     try {
       setSubmitting(true);
       setMessage("");
+      setActionError("");
 
       await maintenanceStaffService.createAgent(payload);
+
       setMessage("Agent créé avec succès.");
 
-      await refetch();
+      await refetch(false);
+    } catch (err) {
+      console.error(err);
+
+      setActionError(
+        "Impossible de créer cet agent. Vérifiez les compétences et certifications."
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <LoadingState label="Chargement du formulaire agent..." />;
-  if (error) return <ErrorState message={error} />;
+  if (loading) {
+    return <LoadingState label="Chargement du formulaire agent..." />;
+  }
+
+  if (error) {
+    return <ErrorState message={error} />;
+  }
 
   return (
     <div className="space-y-8">
@@ -41,7 +66,7 @@ const AgentCreatePage = () => {
         </h1>
 
         <p className="mt-2 text-slate-500">
-          Créez le compte utilisateur et le profil technique de l’agent.
+          Créez le compte, le profil technique et les certifications de sécurité.
         </p>
       </div>
 
@@ -51,9 +76,16 @@ const AgentCreatePage = () => {
         </div>
       )}
 
+      {actionError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
+
       <AgentForm
         teams={teams}
         skills={skills}
+        certifications={certifications}
         submitting={submitting}
         onCreate={handleCreate}
       />

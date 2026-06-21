@@ -18,6 +18,7 @@ export const ROUTES = {
   MAINTENANCE_STAFF_STATS: "/maintenance/staff/stats",
   MAINTENANCE_STAFF_TEAMS: "/maintenance/staff/teams",
   MAINTENANCE_STAFF_SKILLS: "/maintenance/staff/skills",
+  MAINTENANCE_STAFF_CERTIFICATIONS: "/maintenance/staff/certifications",
   MAINTENANCE_STAFF_AGENT_CREATE: "/maintenance/staff/agents/new",
   MAINTENANCE_STAFF_AGENTS: "/maintenance/staff/agents",
   MAINTENANCE_STAFF_AGENT_DETAIL: "/maintenance/staff/agents/:id",

@@ -2,15 +2,18 @@ import apiClient from "../../../shared/api/apiClient";
 import type { ApiResponse } from "../../../shared/types/api.types";
 
 import type {
-  AgentRecommendation,
   AgentRecommendationParams,
+  AgentRecommendationsResponse,
   CreateAgentPayload,
+  CreateCertificationPayload,
   CreateSkillPayload,
   CreateTeamPayload,
   MaintenanceAgentProfile,
+  MaintenanceCertification,
   MaintenanceSkill,
   MaintenanceTeam,
   UpdateAgentPayload,
+  UpdateCertificationPayload,
   UpdateSkillPayload,
   UpdateTeamPayload,
 } from "../types/maintenanceStaff.types";
@@ -109,6 +112,61 @@ export const maintenanceStaffService = {
   },
 
   // =========================
+  // CERTIFICATIONS
+  // =========================
+
+  listCertifications: async (): Promise<MaintenanceCertification[]> => {
+    const res = await apiClient.get<ApiResponse<MaintenanceCertification[]>>(
+      "/certifications"
+    );
+
+    return res.data.data;
+  },
+
+  getCertificationById: async (
+    id: number
+  ): Promise<MaintenanceCertification> => {
+    const res = await apiClient.get<ApiResponse<MaintenanceCertification>>(
+      `/certifications/${id}`
+    );
+
+    return res.data.data;
+  },
+
+  createCertification: async (
+    payload: CreateCertificationPayload
+  ): Promise<MaintenanceCertification> => {
+    const res = await apiClient.post<ApiResponse<MaintenanceCertification>>(
+      "/certifications",
+      payload
+    );
+
+    return res.data.data;
+  },
+
+  updateCertification: async (
+    id: number,
+    payload: UpdateCertificationPayload
+  ): Promise<MaintenanceCertification> => {
+    const res = await apiClient.put<ApiResponse<MaintenanceCertification>>(
+      `/certifications/${id}`,
+      payload
+    );
+
+    return res.data.data;
+  },
+
+  deleteCertification: async (
+    id: number
+  ): Promise<MaintenanceCertification> => {
+    const res = await apiClient.delete<ApiResponse<MaintenanceCertification>>(
+      `/certifications/${id}`
+    );
+
+    return res.data.data;
+  },
+
+  // =========================
   // AGENTS
   // =========================
 
@@ -160,13 +218,13 @@ export const maintenanceStaffService = {
   },
 
   // =========================
-  // RECOMMENDATIONS
+  // RECOMMANDATIONS SÉCURISÉES
   // =========================
 
   getRecommendations: async (
     params: AgentRecommendationParams
-  ): Promise<AgentRecommendation[]> => {
-    const res = await apiClient.get<ApiResponse<AgentRecommendation[]>>(
+  ): Promise<AgentRecommendationsResponse> => {
+    const res = await apiClient.get<ApiResponse<AgentRecommendationsResponse>>(
       "/agents/recommendations",
       {
         params,

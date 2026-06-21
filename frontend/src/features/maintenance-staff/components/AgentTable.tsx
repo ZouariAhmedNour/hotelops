@@ -1,11 +1,15 @@
 import { Link } from "react-router-dom";
+
 import { ROUTES } from "../../../shared/config/routes";
+
 import type { MaintenanceAgentProfile } from "../types/maintenanceStaff.types";
+
 import AgentStatusBadge from "./AgentStatusBadge";
 
 interface AgentTableProps {
   agents: MaintenanceAgentProfile[];
   submitting?: boolean;
+
   onEdit: (agent: MaintenanceAgentProfile) => void;
   onDelete: (id: number) => void;
 }
@@ -21,28 +25,38 @@ const AgentTable = ({
   onDelete,
 }: AgentTableProps) => {
   return (
-    <div className="overflow-hidden rounded-3xl bg-white shadow-[0_2px_20px_rgba(15,23,42,0.06)]">
-      <table className="w-full">
+    <div className="overflow-x-auto rounded-3xl bg-white shadow-[0_2px_20px_rgba(15,23,42,0.06)]">
+      <table className="min-w-[1150px] w-full">
         <thead className="bg-slate-50">
           <tr>
             <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">
               Agent
             </th>
+
             <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">
               Équipe
             </th>
+
             <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">
               Compétences
             </th>
+
+            <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">
+              Certifications
+            </th>
+
             <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">
               Niveau
             </th>
+
             <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">
               Shift
             </th>
+
             <th className="px-4 py-3 text-left text-sm font-medium text-slate-600">
               Statut
             </th>
+
             <th className="px-4 py-3 text-right text-sm font-medium text-slate-600">
               Actions
             </th>
@@ -53,7 +67,7 @@ const AgentTable = ({
           {agents.length === 0 ? (
             <tr>
               <td
-                colSpan={7}
+                colSpan={8}
                 className="px-4 py-8 text-center text-sm text-slate-500"
               >
                 Aucun agent créé pour le moment.
@@ -91,20 +105,55 @@ const AgentTable = ({
                       Aucune
                     </span>
                   ) : (
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex max-w-[220px] flex-wrap gap-1">
                       {agent.skills.map((agentSkill) => (
                         <span
                           key={agentSkill.id}
                           className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600"
                         >
-                          {agentSkill.skill.name}
+                          {agentSkill.skill.name} N{agentSkill.level}
                         </span>
                       ))}
                     </div>
                   )}
                 </td>
 
+                <td className="px-4 py-3">
+                  {agent.certifications.length === 0 ? (
+                    <span className="text-sm italic text-slate-400">
+                      Aucune
+                    </span>
+                  ) : (
+                    <div className="flex max-w-[260px] flex-wrap gap-1">
+                      {agent.certifications.map((agentCertification) => {
+                        const status =
+                          agentCertification.status.toUpperCase();
+
+                        const statusClass =
+                          status === "VALID"
+                            ? "bg-emerald-50 text-emerald-700"
+                            : status === "EXPIRED"
+                              ? "bg-red-50 text-red-700"
+                              : status === "REVOKED"
+                                ? "bg-red-50 text-red-700"
+                                : "bg-amber-50 text-amber-700";
+
+                        return (
+                          <span
+                            key={agentCertification.id}
+                            className={`rounded-full px-2 py-1 text-xs font-medium ${statusClass}`}
+                            title={agentCertification.certification.name}
+                          >
+                            {agentCertification.certification.code}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                </td>
+
                 <td className="px-4 py-3 text-sm">{agent.level}</td>
+
                 <td className="px-4 py-3 text-sm">{agent.shift}</td>
 
                 <td className="px-4 py-3 text-sm">

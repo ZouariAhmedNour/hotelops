@@ -1,85 +1,144 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import { maintenanceStaffService } from "../api/maintenanceStaff.service";
+
 import type {
   MaintenanceAgentProfile,
+  MaintenanceCertification,
   MaintenanceSkill,
   MaintenanceTeam,
 } from "../types/maintenanceStaff.types";
 
+type MaintenanceStaffData = {
+  teams: MaintenanceTeam[];
+  skills: MaintenanceSkill[];
+  certifications: MaintenanceCertification[];
+  agents: MaintenanceAgentProfile[];
+};
+
+const loadMaintenanceStaffData = async (): Promise<MaintenanceStaffData> => {
+  const [teams, skills, certifications, agents] = await Promise.all([
+    maintenanceStaffService.listTeams(),
+    maintenanceStaffService.listSkills(),
+    maintenanceStaffService.listCertifications(),
+    maintenanceStaffService.listAgents(),
+  ]);
+
+  return {
+    teams,
+    skills,
+    certifications,
+    agents,
+  };
+};
+
 export const useMaintenanceStaffData = () => {
   const [teams, setTeams] = useState<MaintenanceTeam[]>([]);
   const [skills, setSkills] = useState<MaintenanceSkill[]>([]);
+  const [certifications, setCertifications] = useState<
+    MaintenanceCertification[]
+  >([]);
   const [agents, setAgents] = useState<MaintenanceAgentProfile[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchData = useCallback(async (showLoader = false) => {
-    try {
-      if (showLoader) {
-        setLoading(true);
-      }
-
-      setError("");
-
-      const [teamsData, skillsData, agentsData] = await Promise.all([
-        maintenanceStaffService.listTeams(),
-        maintenanceStaffService.listSkills(),
-        maintenanceStaffService.listAgents(),
-      ]);
-
-      setTeams(teamsData);
-      setSkills(skillsData);
-      setAgents(agentsData);
-    } catch (err) {
-      console.error(err);
-      setError("Impossible de charger les données équipes, compétences et agents.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const isMountedRef = useRef(false);
 
   useEffect(() => {
-    let ignore = false;
+    isMountedRef.current = true;
 
-    const run = async () => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const updateData = useCallback((data: MaintenanceStaffData) => {
+    setTeams(data.teams);
+    setSkills(data.skills);
+    setCertifications(data.certifications);
+    setAgents(data.agents);
+  }, []);
+
+  // À utiliser après ajout, modification ou suppression.
+  const fetchData = useCallback(
+    async (showLoader = true) => {
       try {
-        const [teamsData, skillsData, agentsData] = await Promise.all([
-          maintenanceStaffService.listTeams(),
-          maintenanceStaffService.listSkills(),
-          maintenanceStaffService.listAgents(),
-        ]);
-
-        if (!ignore) {
-          setTeams(teamsData);
-          setSkills(skillsData);
-          setAgents(agentsData);
-          setError("");
-          setLoading(false);
+        if (showLoader) {
+          setLoading(true);
         }
+
+        setError("");
+
+        const data = await loadMaintenanceStaffData();
+
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        updateData(data);
       } catch (err) {
         console.error(err);
 
-        if (!ignore) {
-          setError("Impossible de charger les données équipes, compétences et agents.");
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        setError(
+          "Impossible de charger les équipes, compétences, certifications et agents."
+        );
+      } finally {
+        if (isMountedRef.current) {
           setLoading(false);
         }
       }
-    };
+    },
+    [updateData]
+  );
 
-    void run();
+  // Chargement initial : aucun setState synchrone avant la réponse API.
+  useEffect(() => {
+    let cancelled = false;
+
+    void loadMaintenanceStaffData()
+      .then((data) => {
+        if (cancelled) {
+          return;
+        }
+
+        updateData(data);
+      })
+      .catch((err) => {
+        console.error(err);
+
+        if (cancelled) {
+          return;
+        }
+
+        setError(
+          "Impossible de charger les équipes, compétences, certifications et agents."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      });
 
     return () => {
-      ignore = true;
+      cancelled = true;
     };
-  }, []);
+  }, [updateData]);
 
   return {
     teams,
     skills,
+    certifications,
     agents,
+
     loading,
     error,
+
     refetch: fetchData,
   };
 };
