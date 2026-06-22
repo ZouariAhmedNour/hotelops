@@ -10,6 +10,7 @@ import {
   UserCog,
   QrCode,
   MapPinned,
+  PackageSearch,
 } from "lucide-react";
 
 import { ROUTES } from "./routes";
@@ -140,6 +141,13 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     label: "Endroits",
     path: ROUTES.LOCATIONS,
     icon: MapPinned,
+    section: "administration",
+    allowedRoles: [ROLES.ADMIN],
+  },
+   {
+    label: "Équipements",
+    path: ROUTES.ASSETS,
+    icon: PackageSearch,
     section: "administration",
     allowedRoles: [ROLES.ADMIN],
   },

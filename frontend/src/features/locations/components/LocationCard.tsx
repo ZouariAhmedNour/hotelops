@@ -1,6 +1,16 @@
-import { Edit, MapPinned, QrCode, Trash2 } from "lucide-react";
+import {
+  Edit,
+  MapPinned,
+  PackageSearch,
+  QrCode,
+  Trash2,
+} from "lucide-react";
+
 import Card from "../../../shared/components/ui/Card";
 import Button from "../../../shared/components/ui/Button";
+
+import { AssetIcon } from "../../assets/utils/assetIcon";
+
 import type { HotelLocation } from "../api/locationApi";
 
 interface Props {
@@ -20,19 +30,33 @@ const typeLabels: Record<string, string> = {
   OTHER: "Autre",
 };
 
-const LocationCard = ({ location, onEdit, onDelete, onGenerateQr }: Props) => {
+const LocationCard = ({
+  location,
+  onEdit,
+  onDelete,
+  onGenerateQr,
+}: Props) => {
   const hasActiveQr = Boolean(location.qrCodes?.some((qr) => qr.isActive));
+
+  const activeAssets = (location.locationAssets ?? []).filter(
+    (item) => item.isActive && item.asset.isActive
+  );
+
+  const visibleAssets = activeAssets.slice(0, 5);
+  const remainingAssets = Math.max(0, activeAssets.length - visibleAssets.length);
+
+  const assetCount = location._count?.locationAssets ?? activeAssets.length;
 
   return (
     <Card className="p-5">
       <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
+        <div className="flex min-w-0 items-start gap-4">
           <div className="rounded-2xl bg-slate-100 p-3 text-[#13234b]">
             <MapPinned size={26} />
           </div>
 
-          <div>
-            <h3 className="text-lg font-semibold text-[#13234b]">
+          <div className="min-w-0">
+            <h3 className="truncate text-lg font-semibold text-[#13234b]">
               {location.name}
             </h3>
 
@@ -50,7 +74,7 @@ const LocationCard = ({ location, onEdit, onDelete, onGenerateQr }: Props) => {
 
         <span
           className={[
-            "rounded-full px-3 py-1 text-xs font-semibold",
+            "shrink-0 rounded-full px-3 py-1 text-xs font-semibold",
             location.isActive
               ? "bg-emerald-50 text-emerald-700"
               : "bg-slate-100 text-slate-500",
@@ -66,11 +90,12 @@ const LocationCard = ({ location, onEdit, onDelete, onGenerateQr }: Props) => {
         </p>
       )}
 
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl bg-slate-50 p-3">
           <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
             Tickets
           </p>
+
           <p className="mt-1 font-semibold text-[#13234b]">
             {location._count?.tickets ?? 0}
           </p>
@@ -80,6 +105,7 @@ const LocationCard = ({ location, onEdit, onDelete, onGenerateQr }: Props) => {
           <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
             QR
           </p>
+
           <p className="mt-1 font-semibold text-[#13234b]">
             {hasActiveQr ? "Actif" : "Aucun"}
           </p>
@@ -89,10 +115,59 @@ const LocationCard = ({ location, onEdit, onDelete, onGenerateQr }: Props) => {
           <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
             Chambre
           </p>
+
           <p className="mt-1 font-semibold text-[#13234b]">
             {location.roomNumber || "-"}
           </p>
         </div>
+
+        <div className="rounded-2xl bg-slate-50 p-3">
+          <p className="text-xs uppercase tracking-[0.18em] text-slate-400">
+            Équipements
+          </p>
+
+          <p className="mt-1 font-semibold text-[#13234b]">{assetCount}</p>
+        </div>
+      </div>
+
+      <div className="mt-5">
+        <div className="flex items-center gap-2">
+          <PackageSearch size={16} className="text-slate-400" />
+
+          <p className="text-sm font-semibold text-slate-600">
+            Équipements disponibles
+          </p>
+        </div>
+
+        {visibleAssets.length === 0 ? (
+          <p className="mt-3 rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-400">
+            Aucun équipement lié à cet endroit.
+          </p>
+        ) : (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {visibleAssets.map((locationAsset) => (
+              <span
+                key={locationAsset.id}
+                className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600"
+                title={locationAsset.notes ?? undefined}
+              >
+                <AssetIcon icon={locationAsset.asset.icon} size={14} />
+
+                {locationAsset.label || locationAsset.asset.name}
+
+                {locationAsset.quantity > 1
+                  ? ` ×${locationAsset.quantity}`
+                  : ""}
+              </span>
+            ))}
+
+            {remainingAssets > 0 && (
+              <span className="rounded-full bg-[#13234b] px-3 py-2 text-xs font-semibold text-white">
+                +{remainingAssets} autres
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">

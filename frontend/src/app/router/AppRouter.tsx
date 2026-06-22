@@ -33,6 +33,7 @@ import RoleGuard from "./RoleGuard";
 import AppLayout from "../../shared/components/layout/AppLayout";
 import LocationManagementPage from "../../features/locations/pages/LocationManagementPage";
 import MaintenanceCertificationsPage from "../../features/maintenance-staff/pages/MaintenanceCertificationsPage";
+import AssetManagementPage from "../../features/assets/pages/AssetManagementPage";
 
 const AppRouter = () => {
   return (
@@ -122,6 +123,11 @@ const AppRouter = () => {
               <Route
                 path={ROUTES.LOCATIONS}
                 element={<LocationManagementPage />}
+              />
+
+               <Route
+                path={ROUTES.ASSETS}
+                element={<AssetManagementPage />}
               />
 
               <Route
