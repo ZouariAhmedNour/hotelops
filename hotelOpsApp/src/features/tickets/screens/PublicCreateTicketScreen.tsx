@@ -10,18 +10,26 @@ import {
 import { Feather } from "@expo/vector-icons";
 
 import AppButton from "../../../components/ui/AppButton";
+
+import AssetSelector from "../components/AssetSelector";
 import CategorySelector from "../components/CategorySelector";
-import PrioritySelector from "../components/PrioritySelector";
 import PhotoUploader from "../components/PhotoUploader";
+import PrioritySelector from "../components/PrioritySelector";
 
 import { colors } from "../../../theme/colors";
-import { publicQrService, type PublicQrInfo } from "../api/publicQrService";
-import type { CategoryItem, PriorityItem } from "../types";
-import { styles } from "../styles/publicCreateTicket.styles";
+import {
+  publicQrService,
+  type CreatePublicTicketPayload,
+  type PublicQrInfo,
+} from "../api/publicQrService";
 import { usePublicCreateTicket } from "../hooks/usePublicCreateTicket";
+import { styles } from "../styles/publicCreateTicket.styles";
+import type { CategoryItem, PriorityItem } from "../types";
+
+type ReporterType = CreatePublicTicketPayload["reporterType"];
 
 type PublicForm = {
-  reporterType: "CLIENT" | "STAFF" | "VISITOR" | "OTHER" | "ANONYMOUS";
+  reporterType: ReporterType;
   fullName: string;
   phone: string;
   email: string;
@@ -29,6 +37,17 @@ type PublicForm = {
   reservationCode: string;
   description: string;
 };
+
+const reporterOptions: Array<{
+  label: string;
+  value: ReporterType;
+}> = [
+  { label: "Client", value: "CLIENT" },
+  { label: "Personnel", value: "STAFF" },
+  { label: "Visiteur", value: "VISITOR" },
+  { label: "Autre", value: "OTHER" },
+  { label: "Anonyme", value: "ANONYMOUS" },
+];
 
 export default function PublicCreateTicketScreen({ route, navigation }: any) {
   const { token, qrInfo } = route.params as {
@@ -41,8 +60,8 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
 
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [priorityId, setPriorityId] = useState<number | null>(null);
-  const [urgencyLevel, setUrgencyLevel] = useState<number>(3);
 
+  const [selectedAssetIds, setSelectedAssetIds] = useState<number[]>([]);
   const [loadingData, setLoadingData] = useState(true);
 
   const {
@@ -64,13 +83,14 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
     description: "",
   });
 
-  const selectedCategory = useMemo(
-    () => categories.find((item) => item.id === categoryId) || null,
-    [categories, categoryId]
-  );
+  const locationAssets = useMemo(() => {
+    return (qrInfo.location.assets ?? []).filter(
+      (asset) => asset.isActive !== false
+    );
+  }, [qrInfo.location.assets]);
 
   useEffect(() => {
-    loadFormData();
+    void loadFormData();
   }, []);
 
   const loadFormData = async () => {
@@ -82,23 +102,34 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
         publicQrService.getPriorities(),
       ]);
 
-      setCategories(categoriesData);
+      const activeCategories = categoriesData.filter(
+        (item) => item.isActive !== false
+      );
+
+      setCategories(activeCategories);
       setPriorities(prioritiesData);
 
-      if (categoriesData.length > 0) {
-        setCategoryId(categoriesData[0].id);
+      if (activeCategories.length > 0) {
+        setCategoryId(activeCategories[0].id);
       }
 
       if (prioritiesData.length > 0) {
-        setPriorityId(prioritiesData[0].id);
-        setUrgencyLevel(prioritiesData[0].sortOrder ?? 3);
+        const defaultPriority =
+          prioritiesData.find(
+            (item) => String(item.code).toUpperCase() === "MEDIUM"
+          ) || prioritiesData[0];
+
+        setPriorityId(defaultPriority.id);
       }
     } catch (error: any) {
-      console.log("PUBLIC FORM DATA ERROR =", error?.response?.data || error.message);
+      console.log(
+        "PUBLIC FORM DATA ERROR =",
+        error?.response?.data || error?.message || error
+      );
 
       Alert.alert(
         "Erreur",
-        "Impossible de charger les catégories et priorités."
+        "Impossible de charger les catégories et les priorités."
       );
     } finally {
       setLoadingData(false);
@@ -109,15 +140,24 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
     key: K,
     value: PublicForm[K]
   ) => {
-    setForm((current) => ({
-      ...current,
+    setForm((currentForm) => ({
+      ...currentForm,
       [key]: value,
     }));
   };
 
   const selectPriority = (priority: PriorityItem) => {
     setPriorityId(priority.id);
-    setUrgencyLevel(priority.sortOrder ?? 3);
+  };
+
+  const toggleAsset = (assetId: number) => {
+    setSelectedAssetIds((currentIds) => {
+      if (currentIds.includes(assetId)) {
+        return currentIds.filter((id) => id !== assetId);
+      }
+
+      return [...currentIds, assetId];
+    });
   };
 
   const handleSubmit = async () => {
@@ -142,9 +182,12 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
       categoryId,
       priorityId,
       description: form.description.trim(),
+      assetIds: selectedAssetIds,
     });
 
-    if (!ticket) return;
+    if (!ticket) {
+      return;
+    }
 
     Alert.alert(
       "Succès",
@@ -152,7 +195,7 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
       [
         {
           text: "OK",
-          onPress: () => navigation.navigate("Login"),
+          onPress: () => navigation.popToTop(),
         },
       ]
     );
@@ -162,6 +205,7 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
     return (
       <View style={[styles.screen, styles.center]}>
         <ActivityIndicator size="large" color={colors.primary} />
+
         <Text style={styles.loadingText}>Chargement du formulaire...</Text>
       </View>
     );
@@ -189,7 +233,9 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
 
           <Text style={styles.locationMeta}>
             {qrInfo.location.code}
-            {qrInfo.location.floor ? ` · Étage ${qrInfo.location.floor}` : ""}
+            {qrInfo.location.floor
+              ? ` · Étage ${qrInfo.location.floor}`
+              : ""}
             {qrInfo.location.zone ? ` · ${qrInfo.location.zone}` : ""}
           </Text>
         </View>
@@ -201,22 +247,17 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
         <Text style={styles.inputLabel}>Je suis</Text>
 
         <View style={styles.reporterGrid}>
-          {[
-            { label: "Client", value: "CLIENT" },
-            { label: "Personnel", value: "STAFF" },
-            { label: "Visiteur", value: "VISITOR" },
-            { label: "Autre", value: "OTHER" },
-            { label: "Anonyme", value: "ANONYMOUS" },
-          ].map((item) => {
+          {reporterOptions.map((item) => {
             const active = form.reporterType === item.value;
 
             return (
               <Text
                 key={item.value}
-                onPress={() =>
-                  updateForm("reporterType", item.value as PublicForm["reporterType"])
-                }
-                style={[styles.reporterPill, active && styles.reporterPillActive]}
+                onPress={() => updateForm("reporterType", item.value)}
+                style={[
+                  styles.reporterPill,
+                  active && styles.reporterPillActive,
+                ]}
               >
                 {item.label}
               </Text>
@@ -276,6 +317,14 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
         </>
       )}
 
+      <Text style={styles.sectionLabel}>ÉQUIPEMENT(S) CONCERNÉ(S)</Text>
+
+      <AssetSelector
+        assets={locationAssets}
+        selectedIds={selectedAssetIds}
+        onToggle={toggleAsset}
+      />
+
       <Text style={styles.sectionLabel}>TYPE D'INCIDENT</Text>
 
       <CategorySelector
@@ -314,8 +363,8 @@ export default function PublicCreateTicketScreen({ route, navigation }: any) {
 
       <View style={styles.noteBox}>
         <Text style={styles.noteText}>
-          Ce ticket sera créé sans compte utilisateur, mais il restera lié au QR
-          code et à la localisation pour garder une traçabilité.
+          Ce ticket restera lié au QR code, à la localisation et aux
+          équipements sélectionnés.
         </Text>
       </View>
 

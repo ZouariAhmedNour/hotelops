@@ -2,7 +2,10 @@ import { useState } from "react";
 import { Alert } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 
-import { CreateTicketPayload, ticketService } from "../api/ticketService";
+import {
+  ticketService,
+  type CreateTicketPayload,
+} from "../api/ticketService";
 
 export function useCreateTicket() {
   const [details, setDetails] = useState("");
@@ -23,12 +26,16 @@ export function useCreateTicket() {
     });
 
     if (!result.canceled) {
-      setPhotos((prev) => [...prev, ...result.assets]);
+      setPhotos((previousPhotos) => [
+        ...previousPhotos,
+        ...result.assets,
+      ]);
     }
   };
 
   const pickFromGallery = async () => {
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
       Alert.alert("Permission refusée", "Accorde l’accès à la galerie.");
@@ -42,12 +49,17 @@ export function useCreateTicket() {
     });
 
     if (!result.canceled) {
-      setPhotos((prev) => [...prev, ...result.assets]);
+      setPhotos((previousPhotos) => [
+        ...previousPhotos,
+        ...result.assets,
+      ]);
     }
   };
 
   const removePhoto = (uri: string) => {
-    setPhotos((prev) => prev.filter((item) => item.uri !== uri));
+    setPhotos((previousPhotos) =>
+      previousPhotos.filter((item) => item.uri !== uri)
+    );
   };
 
   const submitTicket = async (
@@ -64,16 +76,27 @@ export function useCreateTicket() {
       await ticketService.createTicket({
         ...payload,
         description: details.trim(),
+        assetIds: [...new Set(payload.assetIds ?? [])],
         files: photos,
       });
 
-      Alert.alert("Succès", "Ticket créé avec succès");
+      setDetails("");
+      setPhotos([]);
+
+      Alert.alert("Succès", "Ticket créé avec succès.");
 
       return true;
     } catch (error: any) {
-      console.log("CREATE ERROR =", error?.response?.data || error.message);
+      console.log(
+        "CREATE TICKET ERROR =",
+        error?.response?.data || error?.message || error
+      );
 
-      Alert.alert("Erreur", "Impossible de créer le ticket");
+      const backendMessage =
+        error?.response?.data?.message ||
+        "Impossible de créer le ticket.";
+
+      Alert.alert("Erreur", backendMessage);
 
       return false;
     } finally {

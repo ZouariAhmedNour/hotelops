@@ -1,11 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert } from "react-native";
 
+import { categoryService } from "../../../services/categoryService";
 import { locationService } from "../../../services/locationService";
 import { priorityService } from "../../../services/priorityService";
-import { categoryService } from "../../../services/categoryService";
 
-import type { LocationItem, PriorityItem, CategoryItem } from "../types";
+import type {
+  CategoryItem,
+  LocationItem,
+  PriorityItem,
+  SelectableAssetItem,
+} from "../types";
 
 export function useTicketFormData() {
   const [locations, setLocations] = useState<LocationItem[]>([]);
@@ -34,11 +39,25 @@ export function useTicketFormData() {
     [priorities, priorityId]
   );
 
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+  const selectedLocationAssets = useMemo<SelectableAssetItem[]>(() => {
+    const locationAssets = selectedLocation?.locationAssets ?? [];
 
-  const loadInitialData = async () => {
+    return locationAssets
+      .filter((locationAsset) => {
+        return (
+          locationAsset.isActive !== false &&
+          locationAsset.asset?.isActive !== false
+        );
+      })
+      .map((locationAsset) => ({
+        ...locationAsset.asset,
+        locationAssetId: locationAsset.id,
+        label: locationAsset.label,
+        quantity: locationAsset.quantity,
+      }));
+  }, [selectedLocation]);
+
+  const loadInitialData = useCallback(async () => {
     try {
       setLoadingData(true);
 
@@ -79,13 +98,17 @@ export function useTicketFormData() {
         setUrgencyLevel(defaultPriority.sortOrder ?? 3);
       }
     } catch (error: any) {
-      console.log("LOAD ERROR =", error?.response?.data || error.message);
+      console.log("LOAD TICKET FORM ERROR =", error?.response?.data || error);
 
-      Alert.alert("Erreur", "Impossible de charger les données.");
+      Alert.alert("Erreur", "Impossible de charger les données du formulaire.");
     } finally {
       setLoadingData(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    void loadInitialData();
+  }, [loadInitialData]);
 
   const selectPriority = (priority: PriorityItem) => {
     setPriorityId(priority.id);
@@ -105,11 +128,13 @@ export function useTicketFormData() {
     selectedLocation,
     selectedCategory,
     selectedPriority,
+    selectedLocationAssets,
 
     setLocationId,
     setCategoryId,
     selectPriority,
 
     loadingData,
+    reload: loadInitialData,
   };
 }

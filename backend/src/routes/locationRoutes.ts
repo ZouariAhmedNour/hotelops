@@ -130,7 +130,7 @@ router.use(authenticate);
 
 router.get(
   "/",
-  authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "MAINTENANCE_AGENT"),
+  authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "MAINTENANCE_AGENT", "USER"),
   locationController.list
 );
 

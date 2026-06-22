@@ -1,24 +1,24 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TextInput,
   ActivityIndicator,
   Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
 } from "react-native";
 
 import AppButton from "../../../components/ui/AppButton";
 
-import LocationSelector from "../components/LocationSelector";
+import AssetSelector from "../components/AssetSelector";
 import CategorySelector from "../components/CategorySelector";
-import PrioritySelector from "../components/PrioritySelector";
+import LocationSelector from "../components/LocationSelector";
 import PhotoUploader from "../components/PhotoUploader";
+import PrioritySelector from "../components/PrioritySelector";
 
 import { useCreateTicket } from "../hooks/useCreateTicket";
-
-import { styles } from "../styles/createTicket.styles";
 import { useTicketFormData } from "../hooks/useTicketFromData";
+import { styles } from "../styles/createTicket.styles";
 
 export default function CreateTicketScreen({ navigation }: any) {
   const {
@@ -33,6 +33,7 @@ export default function CreateTicketScreen({ navigation }: any) {
 
     selectedLocation,
     selectedCategory,
+    selectedLocationAssets,
 
     setLocationId,
     setCategoryId,
@@ -54,13 +55,29 @@ export default function CreateTicketScreen({ navigation }: any) {
     submitTicket,
   } = useCreateTicket();
 
+  const [selectedAssetIds, setSelectedAssetIds] = useState<number[]>([]);
+
+  useEffect(() => {
+    setSelectedAssetIds([]);
+  }, [locationId]);
+
+  const toggleAsset = (assetId: number) => {
+    setSelectedAssetIds((currentIds) => {
+      if (currentIds.includes(assetId)) {
+        return currentIds.filter((id) => id !== assetId);
+      }
+
+      return [...currentIds, assetId];
+    });
+  };
+
   const handleSubmit = async () => {
     if (!locationId || !categoryId || !priorityId) {
       Alert.alert("Erreur", "Les données ne sont pas encore chargées.");
       return;
     }
 
-    const success = await submitTicket({
+    const created = await submitTicket({
       title: `${selectedCategory?.name || "Incident"} - ${
         selectedLocation?.name || "Localisation"
       }`,
@@ -69,9 +86,10 @@ export default function CreateTicketScreen({ navigation }: any) {
       priorityId,
       reportedFrom: "mobile",
       urgencyLevel,
+      assetIds: selectedAssetIds,
     });
 
-    if (success) {
+    if (created) {
       navigation.goBack();
     }
   };
@@ -102,6 +120,14 @@ export default function CreateTicketScreen({ navigation }: any) {
         locations={locations}
         selectedId={locationId}
         onSelect={setLocationId}
+      />
+
+      <Text style={styles.sectionLabel}>ÉQUIPEMENT(S) CONCERNÉ(S)</Text>
+
+      <AssetSelector
+        assets={selectedLocationAssets}
+        selectedIds={selectedAssetIds}
+        onToggle={toggleAsset}
       />
 
       <Text style={styles.sectionLabel}>TYPE D'INCIDENT</Text>
