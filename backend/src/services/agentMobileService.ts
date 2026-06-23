@@ -1,29 +1,122 @@
 import { Prisma } from "@prisma/client";
+
 import { prisma } from "../config/prisma";
+import {
+  assessTicketSafety,
+  persistTicketRiskAssessment,
+} from "./safetyAssessmentService";
+
+type PartialResolveTaskInput = {
+  temporaryFixNote: string;
+  followUpTitle?: string;
+  followUpDescription: string;
+  followUpPriorityId?: number;
+  followUpCategoryId?: number;
+  requiresExpertIntervention?: boolean;
+  expertReason: string;
+  recommendedSpecialty?: string;
+  timeSpentMinutes?: number;
+  materialsUsed?: {
+    name: string;
+    quantity: number;
+    unit?: string;
+  }[];
+};
+
+const userSelect = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  email: true,
+  phone: true,
+};
+
+const linkedTicketSelect = {
+  id: true,
+  ticketNumber: true,
+  title: true,
+  parentTicketId: true,
+  reportedFrom: true,
+  progress: true,
+  temporaryFixNote: true,
+  followUpReason: true,
+  recommendedSpecialty: true,
+  requiresExpertIntervention: true,
+  createdAt: true,
+
+  status: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      color: true,
+      isFinal: true,
+    },
+  },
+
+  priority: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      sortOrder: true,
+    },
+  },
+
+  category: {
+    select: {
+      id: true,
+      name: true,
+      icon: true,
+    },
+  },
+
+  location: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      floor: true,
+      zone: true,
+      roomNumber: true,
+    },
+  },
+} satisfies Prisma.MaintenanceTicketSelect;
 
 const ticketInclude: Prisma.MaintenanceTicketInclude = {
   location: true,
   category: true,
   priority: true,
   status: true,
+
   reportedBy: {
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
-    },
+    select: userSelect,
   },
+
   assignedTo: {
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      email: true,
-      phone: true,
+    select: userSelect,
+  },
+
+  parentTicket: {
+    select: linkedTicketSelect,
+  },
+
+  followUpTickets: {
+    select: linkedTicketSelect,
+    orderBy: {
+      createdAt: "desc",
     },
   },
+
+  ticketAssets: {
+    include: {
+      asset: true,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  },
+
   comments: {
     include: {
       user: {
@@ -38,11 +131,13 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
       createdAt: "asc",
     },
   },
+
   attachments: {
     orderBy: {
       createdAt: "desc",
     },
   },
+
   events: {
     include: {
       user: {
@@ -57,33 +152,106 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
       createdAt: "asc",
     },
   },
+
   materials: {
     orderBy: {
       createdAt: "desc",
     },
   },
+
+  _count: {
+    select: {
+      comments: true,
+      attachments: true,
+      events: true,
+      materials: true,
+      ticketAssets: true,
+      followUpTickets: true,
+    },
+  },
 };
 
 const createHttpError = (message: string, statusCode: number) => {
-  const err = new Error(message) as Error & { statusCode?: number };
+  const err = new Error(message) as Error & {
+    statusCode?: number;
+  };
+
   err.statusCode = statusCode;
+
   return err;
 };
 
+const normalizeStatusCode = (value?: string | null) => {
+  return (value ?? "")
+    .trim()
+    .replace(/[\s-]+/g, "_")
+    .toUpperCase();
+};
+
+const getStatusCodeVariants = (codes: string[]) => {
+  return [
+    ...new Set(
+      codes.flatMap((rawCode) => {
+        const normalized = normalizeStatusCode(rawCode);
+
+        return [
+          rawCode.trim(),
+          normalized,
+          normalized.toLowerCase(),
+          normalized.replace(/_/g, "-"),
+          normalized.replace(/_/g, " "),
+        ];
+      })
+    ),
+  ].filter(Boolean);
+};
+
 const findStatusByCodes = async (codes: string[]) => {
-  const variants = codes.flatMap((code) => [
-    code,
-    code.toLowerCase(),
-    code.toUpperCase(),
-  ]);
+  const variants = getStatusCodeVariants(codes);
+
+  if (variants.length === 0) {
+    return null;
+  }
 
   return prisma.maintenanceStatus.findFirst({
     where: {
-      code: {
-        in: variants,
-      },
+      OR: variants.map((code) => ({
+        code: {
+          equals: code,
+          mode: "insensitive",
+        },
+      })),
+    },
+    orderBy: {
+      id: "asc",
     },
   });
+};
+
+const isFinalStatus = (status: {
+  code?: string | null;
+  isFinal?: boolean | null;
+}) => {
+  const code = normalizeStatusCode(status.code);
+
+  return (
+    status.isFinal === true ||
+    code === "RESOLVED" ||
+    code === "CLOSED" ||
+    code === "CANCELLED" ||
+    code === "CANCELED"
+  );
+};
+
+const isPartiallyResolvedStatus = (status: {
+  code?: string | null;
+}) => {
+  const code = normalizeStatusCode(status.code);
+
+  return (
+    code === "PARTIALLY_RESOLVED" ||
+    code === "PARTIAL_RESOLVED"
+  );
 };
 
 const assertTicketOwner = async (ticketId: number, userId: number) => {
@@ -93,7 +261,20 @@ const assertTicketOwner = async (ticketId: number, userId: number) => {
     },
     select: {
       id: true,
+      ticketNumber: true,
       assignedToUserId: true,
+      statusId: true,
+      acceptedAt: true,
+      startedAt: true,
+      resolvedAt: true,
+      status: {
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          isFinal: true,
+        },
+      },
     },
   });
 
@@ -106,6 +287,43 @@ const assertTicketOwner = async (ticketId: number, userId: number) => {
   }
 
   return ticket;
+};
+
+const assertTaskCanBeWorked = async (
+  ticketId: number,
+  userId: number
+) => {
+  const ticket = await assertTicketOwner(ticketId, userId);
+
+  if (isFinalStatus(ticket.status)) {
+    throw createHttpError(
+      "Ce ticket est finalisé et ne peut plus être modifié.",
+      409
+    );
+  }
+
+  if (isPartiallyResolvedStatus(ticket.status)) {
+    throw createHttpError(
+      "Ce ticket est déjà partiellement résolu et possède déjà une suite.",
+      409
+    );
+  }
+
+  return ticket;
+};
+
+const generateTicketNumber = async (
+  tx: Prisma.TransactionClient
+): Promise<string> => {
+  const count = await tx.maintenanceTicket.count();
+
+  return `TKT-${String(count + 1).padStart(6, "0")}`;
+};
+
+const optionalText = (value?: string) => {
+  const normalized = value?.trim();
+
+  return normalized ? normalized : null;
 };
 
 export const agentMobileService = {
@@ -148,6 +366,11 @@ export const agentMobileService = {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
+    const inProgressStatus = await findStatusByCodes([
+      "IN_PROGRESS",
+      "in_progress",
+    ]);
+
     const [assignedToday, inProgress, urgent, completedToday] =
       await Promise.all([
         prisma.maintenanceTicket.count({
@@ -162,9 +385,7 @@ export const agentMobileService = {
         prisma.maintenanceTicket.count({
           where: {
             assignedToUserId: userId,
-            status: {
-              code: "IN_PROGRESS",
-            },
+            statusId: inProgressStatus?.id ?? -1,
           },
         }),
 
@@ -206,17 +427,31 @@ export const agentMobileService = {
       statusCode?: string;
     }
   ) => {
-    const page = Number(query.page || 1);
-    const limit = Number(query.limit || 20);
+    const page = Math.max(1, Number(query.page || 1));
+    const limit = Math.min(100, Math.max(1, Number(query.limit || 20)));
 
     const where: Prisma.MaintenanceTicketWhereInput = {
       assignedToUserId: userId,
     };
 
-    if (query.statusCode) {
-      where.status = {
-        code: query.statusCode,
-      };
+    if (query.statusCode?.trim()) {
+      const requestedStatus = await findStatusByCodes([
+        query.statusCode,
+      ]);
+
+      if (!requestedStatus) {
+        return {
+          tasks: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+          },
+        };
+      }
+
+      where.statusId = requestedStatus.id;
     }
 
     const [tasks, total] = await Promise.all([
@@ -268,7 +503,7 @@ export const agentMobileService = {
   },
 
   acceptTask: async (userId: number, ticketId: number) => {
-    await assertTicketOwner(ticketId, userId);
+    const ownedTicket = await assertTaskCanBeWorked(ticketId, userId);
 
     const assignedStatus = await findStatusByCodes(["ASSIGNED"]);
 
@@ -293,6 +528,8 @@ export const agentMobileService = {
           ticketId,
           userId,
           type: "ACCEPTED",
+          fromStatusId: ownedTicket.statusId,
+          toStatusId: assignedStatus.id,
           message: "Intervention acceptée par l’agent",
         },
       }),
@@ -302,9 +539,12 @@ export const agentMobileService = {
   },
 
   startTask: async (userId: number, ticketId: number) => {
-    await assertTicketOwner(ticketId, userId);
+    const ownedTicket = await assertTaskCanBeWorked(ticketId, userId);
 
-    const inProgressStatus = await findStatusByCodes(["IN_PROGRESS", "in_progress"]);
+    const inProgressStatus = await findStatusByCodes([
+      "IN_PROGRESS",
+      "in_progress",
+    ]);
 
     if (!inProgressStatus) {
       throw createHttpError("Statut IN_PROGRESS introuvable", 500);
@@ -317,8 +557,8 @@ export const agentMobileService = {
         },
         data: {
           statusId: inProgressStatus.id,
-          startedAt: new Date(),
-          progress: 10,
+          startedAt: ownedTicket.startedAt ?? new Date(),
+          progress: Math.max(10, 0),
         },
         include: ticketInclude,
       }),
@@ -328,6 +568,8 @@ export const agentMobileService = {
           ticketId,
           userId,
           type: "STARTED",
+          fromStatusId: ownedTicket.statusId,
+          toStatusId: inProgressStatus.id,
           message: "Intervention démarrée par l’agent",
         },
       }),
@@ -336,8 +578,12 @@ export const agentMobileService = {
     return ticket;
   },
 
-  pauseTask: async (userId: number, ticketId: number, reason?: string) => {
-    await assertTicketOwner(ticketId, userId);
+  pauseTask: async (
+    userId: number,
+    ticketId: number,
+    reason?: string
+  ) => {
+    const ownedTicket = await assertTaskCanBeWorked(ticketId, userId);
 
     const pendingStatus = await findStatusByCodes(["PENDING"]);
 
@@ -345,7 +591,7 @@ export const agentMobileService = {
       throw createHttpError("Statut PENDING introuvable", 500);
     }
 
-    const message = reason || "Intervention mise en pause";
+    const message = reason?.trim() || "Intervention mise en pause";
 
     const [ticket] = await prisma.$transaction([
       prisma.maintenanceTicket.update({
@@ -365,6 +611,8 @@ export const agentMobileService = {
           ticketId,
           userId,
           type: "PAUSED",
+          fromStatusId: ownedTicket.statusId,
+          toStatusId: pendingStatus.id,
           message,
         },
       }),
@@ -373,8 +621,12 @@ export const agentMobileService = {
     return ticket;
   },
 
-  pendingParts: async (userId: number, ticketId: number, reason?: string) => {
-    await assertTicketOwner(ticketId, userId);
+  pendingParts: async (
+    userId: number,
+    ticketId: number,
+    reason?: string
+  ) => {
+    const ownedTicket = await assertTaskCanBeWorked(ticketId, userId);
 
     const pendingStatus = await findStatusByCodes(["PENDING"]);
 
@@ -382,7 +634,7 @@ export const agentMobileService = {
       throw createHttpError("Statut PENDING introuvable", 500);
     }
 
-    const message = reason || "En attente de pièces";
+    const message = reason?.trim() || "En attente de pièces";
 
     const [ticket] = await prisma.$transaction([
       prisma.maintenanceTicket.update({
@@ -401,6 +653,8 @@ export const agentMobileService = {
           ticketId,
           userId,
           type: "PENDING_PARTS",
+          fromStatusId: ownedTicket.statusId,
+          toStatusId: pendingStatus.id,
           message,
         },
       }),
@@ -409,10 +663,14 @@ export const agentMobileService = {
     return ticket;
   },
 
-  needHelp: async (userId: number, ticketId: number, reason?: string) => {
-    await assertTicketOwner(ticketId, userId);
+  needHelp: async (
+    userId: number,
+    ticketId: number,
+    reason?: string
+  ) => {
+    await assertTaskCanBeWorked(ticketId, userId);
 
-    const message = reason || "Besoin d’aide";
+    const message = reason?.trim() || "Besoin d’aide";
 
     const [ticket] = await prisma.$transaction([
       prisma.maintenanceTicket.update({
@@ -444,7 +702,7 @@ export const agentMobileService = {
     progress: number,
     note?: string
   ) => {
-    await assertTicketOwner(ticketId, userId);
+    await assertTaskCanBeWorked(ticketId, userId);
 
     const safeProgress = Math.max(0, Math.min(100, progress));
 
@@ -464,7 +722,9 @@ export const agentMobileService = {
           ticketId,
           userId,
           type: "PROGRESS_UPDATED",
-          message: note || `Progression mise à jour : ${safeProgress}%`,
+          message:
+            note?.trim() ||
+            `Progression mise à jour : ${safeProgress}%`,
           metadata: {
             progress: safeProgress,
           },
@@ -475,92 +735,461 @@ export const agentMobileService = {
     return ticket;
   },
 
- resolveTask: async (
-  userId: number,
-  ticketId: number,
-  body: {
-    resolutionNote: string;
-    timeSpentMinutes?: number;
-    materialsUsed?: {
-      name: string;
-      quantity: number;
-      unit?: string;
-    }[];
-  }
-) => {
-  await assertTicketOwner(ticketId, userId);
+  resolveTask: async (
+    userId: number,
+    ticketId: number,
+    body: {
+      resolutionNote: string;
+      timeSpentMinutes?: number;
+      materialsUsed?: {
+        name: string;
+        quantity: number;
+        unit?: string;
+      }[];
+    }
+  ) => {
+    const ownedTicket = await assertTaskCanBeWorked(ticketId, userId);
 
-  const currentTicket = await prisma.maintenanceTicket.findUnique({
-    where: {
-      id: ticketId,
-    },
-    select: {
-      startedAt: true,
-    },
-  });
+    const resolvedStatus = await findStatusByCodes([
+      "RESOLVED",
+      "resolved",
+    ]);
 
-  if (!currentTicket) {
-    throw createHttpError("Ticket introuvable", 404);
-  }
+    if (!resolvedStatus) {
+      throw createHttpError("Statut RESOLVED introuvable", 500);
+    }
 
-  const resolvedStatus = await findStatusByCodes(["RESOLVED", "resolved"]);
+    const resolvedAt = new Date();
 
-  if (!resolvedStatus) {
-    throw createHttpError("Statut RESOLVED introuvable", 500);
-  }
-
-  const resolvedAt = new Date();
-
-  const calculatedTimeSpentMinutes = currentTicket.startedAt
-    ? Math.max(
-        1,
-        Math.round(
-          (resolvedAt.getTime() - currentTicket.startedAt.getTime()) / 60000
+    const calculatedTimeSpentMinutes = ownedTicket.startedAt
+      ? Math.max(
+          1,
+          Math.round(
+            (resolvedAt.getTime() -
+              ownedTicket.startedAt.getTime()) /
+              60000
+          )
         )
-      )
-    : undefined;
+      : undefined;
 
-  const result = await prisma.$transaction(async (tx) => {
-    const ticket = await tx.maintenanceTicket.update({
+    return prisma.$transaction(async (tx) => {
+      await tx.maintenanceTicket.update({
+        where: {
+          id: ticketId,
+        },
+        data: {
+          statusId: resolvedStatus.id,
+          resolvedAt,
+          progress: 100,
+          resolutionNote: body.resolutionNote.trim(),
+          timeSpentMinutes:
+            body.timeSpentMinutes ?? calculatedTimeSpentMinutes,
+        },
+      });
+
+      await tx.maintenanceTicketEvent.create({
+        data: {
+          ticketId,
+          userId,
+          type: "RESOLVED",
+          fromStatusId: ownedTicket.statusId,
+          toStatusId: resolvedStatus.id,
+          message: body.resolutionNote.trim(),
+        },
+      });
+
+      if (body.materialsUsed?.length) {
+        await tx.maintenanceInterventionMaterial.createMany({
+          data: body.materialsUsed.map((material) => ({
+            ticketId,
+            name: material.name.trim(),
+            quantity: material.quantity,
+            unit: optionalText(material.unit),
+          })),
+        });
+      }
+
+      const resolvedTicket = await tx.maintenanceTicket.findUnique({
+        where: {
+          id: ticketId,
+        },
+        include: ticketInclude,
+      });
+
+      if (!resolvedTicket) {
+        throw createHttpError("Ticket introuvable après résolution", 500);
+      }
+
+      return resolvedTicket;
+    });
+  },
+
+  partialResolveTask: async (
+    userId: number,
+    ticketId: number,
+    body: PartialResolveTaskInput
+  ) => {
+    await assertTaskCanBeWorked(ticketId, userId);
+
+    const originalTicket = await prisma.maintenanceTicket.findUnique({
       where: {
         id: ticketId,
       },
-      data: {
-        statusId: resolvedStatus.id,
-        resolvedAt,
-        progress: 100,
-        resolutionNote: body.resolutionNote,
-        timeSpentMinutes:
-          body.timeSpentMinutes ?? calculatedTimeSpentMinutes,
-      },
-      include: ticketInclude,
-    });
-
-    await tx.maintenanceTicketEvent.create({
-      data: {
-        ticketId,
-        userId,
-        type: "RESOLVED",
-        message: body.resolutionNote,
+      include: {
+        location: true,
+        category: true,
+        priority: true,
+        status: true,
+        ticketAssets: {
+          select: {
+            assetId: true,
+          },
+        },
       },
     });
 
-    if (body.materialsUsed?.length) {
-      await tx.maintenanceInterventionMaterial.createMany({
-        data: body.materialsUsed.map((material) => ({
-          ticketId,
-          name: material.name,
-          quantity: material.quantity,
-          unit: material.unit,
-        })),
-      });
+    if (!originalTicket) {
+      throw createHttpError("Ticket introuvable", 404);
     }
 
-    return ticket;
-  });
+    if (originalTicket.assignedToUserId !== userId) {
+      throw createHttpError("Accès interdit à ce ticket", 403);
+    }
 
-  return result;
-},
+    if (
+      isFinalStatus(originalTicket.status) ||
+      isPartiallyResolvedStatus(originalTicket.status)
+    ) {
+      throw createHttpError(
+        "Ce ticket ne peut plus être partiellement résolu.",
+        409
+      );
+    }
+
+    const followUpCategoryId =
+      body.followUpCategoryId ?? originalTicket.categoryId;
+
+    const followUpPriorityId =
+      body.followUpPriorityId ?? originalTicket.priorityId;
+
+    const [
+      followUpCategory,
+      followUpPriority,
+      initialStatus,
+      partialResolvedStatus,
+    ] = await Promise.all([
+      prisma.maintenanceCategory.findUnique({
+        where: {
+          id: followUpCategoryId,
+        },
+      }),
+
+      prisma.maintenancePriority.findUnique({
+        where: {
+          id: followUpPriorityId,
+        },
+      }),
+
+      findStatusByCodes(["NEW", "OPEN", "new", "open"]),
+
+      findStatusByCodes([
+        "PARTIALLY_RESOLVED",
+        "PARTIAL_RESOLVED",
+        "partially_resolved",
+        "partial_resolved",
+      ]),
+    ]);
+
+    if (!followUpCategory || !followUpCategory.isActive) {
+      throw createHttpError(
+        "La catégorie du ticket de suivi est introuvable ou inactive.",
+        400
+      );
+    }
+
+    if (!followUpPriority) {
+      throw createHttpError(
+        "La priorité du ticket de suivi est introuvable.",
+        400
+      );
+    }
+
+    if (!initialStatus) {
+      throw createHttpError(
+        "Statut initial NEW ou OPEN introuvable.",
+        500
+      );
+    }
+
+    if (!partialResolvedStatus) {
+      throw createHttpError(
+        "Statut PARTIALLY_RESOLVED introuvable. Exécutez le seed des statuts.",
+        500
+      );
+    }
+
+    const existingActiveFollowUp =
+      await prisma.maintenanceTicket.findFirst({
+        where: {
+          parentTicketId: ticketId,
+          status: {
+            isFinal: false,
+          },
+        },
+        select: {
+          id: true,
+          ticketNumber: true,
+        },
+      });
+
+    if (existingActiveFollowUp) {
+      throw createHttpError(
+        `Un ticket de suivi actif existe déjà : ${existingActiveFollowUp.ticketNumber}.`,
+        409
+      );
+    }
+
+    const temporaryFixNote = body.temporaryFixNote.trim();
+    const expertReason = body.expertReason.trim();
+    const followUpTitle =
+      body.followUpTitle?.trim() ||
+      `Suite intervention - ${originalTicket.ticketNumber}`;
+
+    const followUpDescription = [
+      `Ticket de suivi créé depuis ${originalTicket.ticketNumber}.`,
+      "",
+      body.followUpDescription.trim(),
+      "",
+      "Solution temporaire appliquée sur le ticket original :",
+      temporaryFixNote,
+      "",
+      "Pourquoi une intervention lourde est nécessaire :",
+      expertReason,
+      body.recommendedSpecialty?.trim()
+        ? `Spécialité recommandée : ${body.recommendedSpecialty.trim()}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const safetyAssessment = await assessTicketSafety({
+      title: followUpTitle,
+      description: followUpDescription,
+      urgencyLevel: originalTicket.urgencyLevel,
+      category: followUpCategory,
+      priority: followUpPriority,
+      location: originalTicket.location,
+    });
+
+    const partialResolvedAt = new Date();
+
+    const calculatedTimeSpentMinutes = originalTicket.startedAt
+      ? Math.max(
+          1,
+          Math.round(
+            (partialResolvedAt.getTime() -
+              originalTicket.startedAt.getTime()) /
+              60000
+          )
+        )
+      : undefined;
+
+    return prisma.$transaction(async (tx) => {
+      const currentOriginal = await tx.maintenanceTicket.findUnique({
+        where: {
+          id: ticketId,
+        },
+        include: {
+          status: true,
+          ticketAssets: {
+            select: {
+              assetId: true,
+            },
+          },
+        },
+      });
+
+      if (!currentOriginal) {
+        throw createHttpError("Ticket original introuvable", 404);
+      }
+
+      if (currentOriginal.assignedToUserId !== userId) {
+        throw createHttpError("Accès interdit à ce ticket", 403);
+      }
+
+      if (
+        isFinalStatus(currentOriginal.status) ||
+        isPartiallyResolvedStatus(currentOriginal.status)
+      ) {
+        throw createHttpError(
+          "Le ticket a déjà été finalisé ou partiellement résolu.",
+          409
+        );
+      }
+
+      const duplicateFollowUp =
+        await tx.maintenanceTicket.findFirst({
+          where: {
+            parentTicketId: ticketId,
+            status: {
+              isFinal: false,
+            },
+          },
+          select: {
+            id: true,
+            ticketNumber: true,
+          },
+        });
+
+      if (duplicateFollowUp) {
+        throw createHttpError(
+          `Un ticket de suivi existe déjà : ${duplicateFollowUp.ticketNumber}.`,
+          409
+        );
+      }
+
+      let dueAt: Date | null = null;
+
+      if (followUpPriority.slaHours) {
+        dueAt = new Date(
+          Date.now() + followUpPriority.slaHours * 60 * 60 * 1000
+        );
+      }
+
+      const followUpTicketNumber = await generateTicketNumber(tx);
+
+      const followUpTicket = await tx.maintenanceTicket.create({
+        data: {
+          ticketNumber: followUpTicketNumber,
+          title: followUpTitle,
+          description: followUpDescription,
+
+          locationId: originalTicket.locationId,
+          categoryId: followUpCategory.id,
+          priorityId: followUpPriority.id,
+          statusId: initialStatus.id,
+
+          reportedByUserId: userId,
+          reportedFrom: "agent_follow_up",
+          urgencyLevel: originalTicket.urgencyLevel,
+          dueAt,
+
+          parentTicketId: ticketId,
+        },
+      });
+
+      if (currentOriginal.ticketAssets.length > 0) {
+        await tx.maintenanceTicketAsset.createMany({
+          data: currentOriginal.ticketAssets.map((item) => ({
+            ticketId: followUpTicket.id,
+            assetId: item.assetId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      await persistTicketRiskAssessment(
+        tx,
+        followUpTicket.id,
+        safetyAssessment
+      );
+
+      if (body.materialsUsed?.length) {
+        await tx.maintenanceInterventionMaterial.createMany({
+          data: body.materialsUsed.map((material) => ({
+            ticketId,
+            name: material.name.trim(),
+            quantity: material.quantity,
+            unit: optionalText(material.unit),
+          })),
+        });
+      }
+
+      await tx.maintenanceTicketEvent.create({
+        data: {
+          ticketId: followUpTicket.id,
+          userId,
+          type: "CREATED_FROM_PARTIAL_RESOLUTION",
+          toStatusId: initialStatus.id,
+          message: `Ticket de suivi créé depuis ${originalTicket.ticketNumber}`,
+          metadata: {
+            parentTicketId: ticketId,
+            parentTicketNumber: originalTicket.ticketNumber,
+            requiresExpertIntervention:
+              body.requiresExpertIntervention ?? false,
+            recommendedSpecialty:
+              optionalText(body.recommendedSpecialty),
+          },
+        },
+      });
+
+      await tx.maintenanceTicketEvent.create({
+        data: {
+          ticketId,
+          userId,
+          type: "PARTIALLY_RESOLVED",
+          fromStatusId: currentOriginal.statusId,
+          toStatusId: partialResolvedStatus.id,
+          message: temporaryFixNote,
+          metadata: {
+            followUpTicketId: followUpTicket.id,
+            followUpTicketNumber,
+            requiresExpertIntervention:
+              body.requiresExpertIntervention ?? false,
+            recommendedSpecialty:
+              optionalText(body.recommendedSpecialty),
+            expertReason,
+          },
+        },
+      });
+
+      const updatedOriginalTicket = await tx.maintenanceTicket.update({
+        where: {
+          id: ticketId,
+        },
+        data: {
+          statusId: partialResolvedStatus.id,
+          progress: 85,
+
+          resolutionNote: temporaryFixNote,
+          temporaryFixNote,
+          followUpReason: expertReason,
+          recommendedSpecialty:
+            optionalText(body.recommendedSpecialty),
+
+          requiresExpertIntervention:
+            body.requiresExpertIntervention ?? false,
+
+          followUpCreatedAt: partialResolvedAt,
+
+          timeSpentMinutes:
+            body.timeSpentMinutes ?? calculatedTimeSpentMinutes,
+        },
+        include: ticketInclude,
+      });
+
+      const hydratedFollowUpTicket =
+        await tx.maintenanceTicket.findUnique({
+          where: {
+            id: followUpTicket.id,
+          },
+          include: ticketInclude,
+        });
+
+      if (!hydratedFollowUpTicket) {
+        throw createHttpError(
+          "Ticket de suivi introuvable après création.",
+          500
+        );
+      }
+
+      return {
+        originalTicket: updatedOriginalTicket,
+        followUpTicket: hydratedFollowUpTicket,
+      };
+    });
+  },
+
   addNote: async (
     userId: number,
     ticketId: number,
@@ -575,7 +1204,7 @@ export const agentMobileService = {
       data: {
         ticketId,
         userId,
-        comment: body.comment,
+        comment: body.comment.trim(),
         isInternal: body.isInternal ?? true,
       },
       include: {
@@ -594,7 +1223,7 @@ export const agentMobileService = {
         ticketId,
         userId,
         type: "NOTE_ADDED",
-        message: body.comment,
+        message: body.comment.trim(),
       },
     });
 
@@ -621,7 +1250,7 @@ export const agentMobileService = {
         fileSize: file.size,
         uploadedByUserId: userId,
         photoType: body.photoType || "AFTER",
-        caption: body.caption,
+        caption: optionalText(body.caption),
       },
     });
 
@@ -640,13 +1269,16 @@ export const agentMobileService = {
     return attachment;
   },
 
-  updateAvailability: async (userId: number, availabilityStatus: string) => {
+  updateAvailability: async (
+    userId: number,
+    availabilityStatus: string
+  ) => {
     return prisma.maintenanceAgentProfile.update({
       where: {
         userId,
       },
       data: {
-        availabilityStatus,
+        availabilityStatus: availabilityStatus.trim().toUpperCase(),
       },
       include: {
         user: {

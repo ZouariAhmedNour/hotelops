@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import { z } from "zod";
 
 import { success } from "../utils/response";
@@ -14,7 +14,10 @@ type AuthRequest = Request & {
 
 const getUserId = (req: AuthRequest) => {
   if (!req.user?.userId) {
-    const err = new Error("Non authentifié") as Error & { statusCode?: number };
+    const err = new Error("Non authentifié") as Error & {
+      statusCode?: number;
+    };
+
     err.statusCode = 401;
     throw err;
   }
@@ -23,14 +26,45 @@ const getUserId = (req: AuthRequest) => {
 };
 
 const resolveSchema = z.object({
-  resolutionNote: z.string().min(1),
-  timeSpentMinutes: z.coerce.number().optional(),
+  resolutionNote: z.string().trim().min(1),
+  timeSpentMinutes: z.coerce.number().int().nonnegative().optional(),
   materialsUsed: z
     .array(
       z.object({
-        name: z.string().min(1),
-        quantity: z.coerce.number().min(1),
-        unit: z.string().optional(),
+        name: z.string().trim().min(1),
+        quantity: z.coerce.number().int().min(1),
+        unit: z.string().trim().optional(),
+      })
+    )
+    .optional(),
+});
+
+const partialResolveSchema = z.object({
+  temporaryFixNote: z.string().trim().min(3),
+  followUpTitle: z.string().trim().min(3).max(200).optional(),
+  followUpDescription: z.string().trim().min(5).max(5000),
+
+  followUpPriorityId: z.coerce.number().int().positive().optional(),
+  followUpCategoryId: z.coerce.number().int().positive().optional(),
+
+  requiresExpertIntervention: z.boolean().optional(),
+
+  expertReason: z.string().trim().min(3).max(2000),
+
+  recommendedSpecialty: z
+    .string()
+    .trim()
+    .max(150)
+    .optional(),
+
+  timeSpentMinutes: z.coerce.number().int().nonnegative().optional(),
+
+  materialsUsed: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1),
+        quantity: z.coerce.number().int().min(1),
+        unit: z.string().trim().optional(),
       })
     )
     .optional(),
@@ -52,22 +86,32 @@ export const agentMobileController = {
     next: NextFunction
   ) => {
     try {
-      const data = await agentMobileService.getTodayStats(getUserId(req));
+      const data = await agentMobileService.getTodayStats(
+        getUserId(req)
+      );
+
       return success(res, data);
     } catch (err) {
       next(err);
     }
   },
 
-  getTasks: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  getTasks: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
-      const data = await agentMobileService.getTasks(getUserId(req), {
-        page: Number(req.query.page || 1),
-        limit: Number(req.query.limit || 20),
-        statusCode: req.query.statusCode
-          ? String(req.query.statusCode)
-          : undefined,
-      });
+      const data = await agentMobileService.getTasks(
+        getUserId(req),
+        {
+          page: Number(req.query.page || 1),
+          limit: Number(req.query.limit || 20),
+          statusCode: req.query.statusCode
+            ? String(req.query.statusCode)
+            : undefined,
+        }
+      );
 
       return success(res, data);
     } catch (err) {
@@ -75,7 +119,11 @@ export const agentMobileController = {
     }
   },
 
-  getTaskById: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  getTaskById: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const data = await agentMobileService.getTaskById(
         getUserId(req),
@@ -88,7 +136,11 @@ export const agentMobileController = {
     }
   },
 
-  acceptTask: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  acceptTask: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const data = await agentMobileService.acceptTask(
         getUserId(req),
@@ -101,7 +153,11 @@ export const agentMobileController = {
     }
   },
 
-  startTask: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  startTask: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const data = await agentMobileService.startTask(
         getUserId(req),
@@ -114,7 +170,11 @@ export const agentMobileController = {
     }
   },
 
-  pauseTask: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  pauseTask: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const data = await agentMobileService.pauseTask(
         getUserId(req),
@@ -128,7 +188,11 @@ export const agentMobileController = {
     }
   },
 
-  pendingParts: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  pendingParts: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const data = await agentMobileService.pendingParts(
         getUserId(req),
@@ -142,7 +206,11 @@ export const agentMobileController = {
     }
   },
 
-  needHelp: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  needHelp: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const data = await agentMobileService.needHelp(
         getUserId(req),
@@ -175,7 +243,11 @@ export const agentMobileController = {
     }
   },
 
-  resolveTask: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  resolveTask: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const body = resolveSchema.parse(req.body);
 
@@ -191,7 +263,35 @@ export const agentMobileController = {
     }
   },
 
-  addNote: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  partialResolveTask: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const body = partialResolveSchema.parse(req.body);
+
+      const data = await agentMobileService.partialResolveTask(
+        getUserId(req),
+        Number(req.params.id),
+        body
+      );
+
+      return success(
+        res,
+        data,
+        "Ticket partiellement résolu et ticket de suivi créé."
+      );
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  addNote: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const data = await agentMobileService.addNote(
         getUserId(req),
@@ -208,12 +308,17 @@ export const agentMobileController = {
     }
   },
 
-  addPhoto: async (req: AuthRequest, res: Response, next: NextFunction) => {
+  addPhoto: async (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       if (!req.file) {
         const err = new Error("Fichier obligatoire") as Error & {
           statusCode?: number;
         };
+
         err.statusCode = 400;
         throw err;
       }
@@ -240,7 +345,9 @@ export const agentMobileController = {
     next: NextFunction
   ) => {
     try {
-      const availabilityStatus = String(req.body.availabilityStatus || "");
+      const availabilityStatus = String(
+        req.body.availabilityStatus || ""
+      );
 
       const data = await agentMobileService.updateAvailability(
         getUserId(req),

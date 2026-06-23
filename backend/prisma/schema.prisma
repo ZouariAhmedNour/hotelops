@@ -191,7 +191,10 @@ model MaintenanceTicket {
   publicReporterId Int?
   qrCodeId         Int?
 
-  reportedFrom String? // mobile | web | reception | qr_public
+  // Ticket de suivi créé depuis une intervention temporaire.
+  parentTicketId Int?
+
+  reportedFrom String? // mobile | web | reception | qr_public | agent_follow_up
   urgencyLevel Int?
   progress     Int     @default(0)
 
@@ -207,6 +210,13 @@ model MaintenanceTicket {
   closureNote    String?
   pendingReason  String?
   needHelpReason String?
+
+  // Résolution partielle / intervention lourde.
+  temporaryFixNote            String?
+  followUpReason              String?
+  recommendedSpecialty         String?
+  requiresExpertIntervention  Boolean   @default(false)
+  followUpCreatedAt           DateTime?
 
   timeSpentMinutes Int?
 
@@ -224,6 +234,10 @@ model MaintenanceTicket {
   publicReporter PublicTicketReporter? @relation(fields: [publicReporterId], references: [id])
   qrCode         LocationQrCode?       @relation(fields: [qrCodeId], references: [id])
 
+  // Self relation : ticket parent / tickets de suivi.
+  parentTicket    MaintenanceTicket?  @relation("TicketFollowUps", fields: [parentTicketId], references: [id], onDelete: SetNull)
+  followUpTickets MaintenanceTicket[] @relation("TicketFollowUps")
+
   comments     MaintenanceComment[]
   attachments  MaintenanceAttachment[]
   assignments  MaintenanceAssignment[]
@@ -232,6 +246,10 @@ model MaintenanceTicket {
   ticketAssets MaintenanceTicketAsset[]
 
   riskAssessment MaintenanceTicketRiskAssessment?
+
+  @@index([parentTicketId])
+  @@index([requiresExpertIntervention])
+  @@index([followUpCreatedAt])
 }
 
 // ============================================================

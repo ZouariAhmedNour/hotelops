@@ -41,6 +41,33 @@ const resolveBodySchema = z.object({
     .optional(),
 });
 
+const partialResolveBodySchema = z.object({
+  temporaryFixNote: z.string().min(3),
+  followUpTitle: z.string().optional(),
+  followUpDescription: z.string().min(5),
+
+  followUpPriorityId: z.coerce.number().optional(),
+  followUpCategoryId: z.coerce.number().optional(),
+
+  requiresExpertIntervention: z.boolean().optional(),
+
+  expertReason: z.string().min(3),
+
+  recommendedSpecialty: z.string().optional(),
+
+  timeSpentMinutes: z.coerce.number().optional(),
+
+  materialsUsed: z
+    .array(
+      z.object({
+        name: z.string().min(1),
+        quantity: z.coerce.number().min(1),
+        unit: z.string().optional(),
+      })
+    )
+    .optional(),
+});
+
 const noteBodySchema = z.object({
   comment: z.string().min(1),
   isInternal: z.boolean().optional(),
@@ -245,6 +272,29 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "patch",
+  path: "/api/agent/tasks/{id}/partial-resolve",
+  tags: ["Agent Mobile"],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: ticketIdParamSchema,
+    body: {
+      content: {
+        "application/json": {
+          schema: partialResolveBodySchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description:
+        "Ticket partiellement résolu et ticket de suivi créé",
+    },
+  },
+});
+
+registry.registerPath({
   method: "post",
   path: "/api/agent/tasks/{id}/notes",
   tags: ["Agent Mobile"],
@@ -340,6 +390,7 @@ router.patch("/tasks/:id/pending-parts", agentMobileController.pendingParts);
 router.patch("/tasks/:id/need-help", agentMobileController.needHelp);
 router.patch("/tasks/:id/progress", agentMobileController.updateProgress);
 router.patch("/tasks/:id/resolve", agentMobileController.resolveTask);
+router.patch("/tasks/:id/partial-resolve",agentMobileController.partialResolveTask);
 
 router.post("/tasks/:id/notes", agentMobileController.addNote);
 

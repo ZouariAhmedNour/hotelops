@@ -52,6 +52,59 @@ const userSelect = {
   phone: true,
 };
 
+const linkedTicketSelect = {
+  id: true,
+  ticketNumber: true,
+  title: true,
+  parentTicketId: true,
+  reportedFrom: true,
+  progress: true,
+  temporaryFixNote: true,
+  followUpReason: true,
+  recommendedSpecialty: true,
+  requiresExpertIntervention: true,
+  createdAt: true,
+
+  status: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      color: true,
+      isFinal: true,
+    },
+  },
+
+  priority: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      sortOrder: true,
+    },
+  },
+
+  category: {
+    select: {
+      id: true,
+      name: true,
+      icon: true,
+    },
+  },
+
+  location: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      floor: true,
+      zone: true,
+      roomNumber: true,
+    },
+  },
+} satisfies Prisma.MaintenanceTicketSelect;
+
+
 const ticketInclude: Prisma.MaintenanceTicketInclude = {
   location: true,
   category: true,
@@ -72,6 +125,17 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
 
   riskAssessment: true,
 
+  parentTicket: {
+    select: linkedTicketSelect,
+  },
+
+  followUpTickets: {
+    select: linkedTicketSelect,
+    orderBy: {
+      createdAt: "desc",
+    },
+  },
+
   ticketAssets: {
     include: {
       asset: true,
@@ -88,6 +152,7 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
       events: true,
       materials: true,
       ticketAssets: true,
+      followUpTickets: true,
     },
   },
 };
@@ -159,7 +224,12 @@ const ticketDetailInclude: Prisma.MaintenanceTicketInclude = {
   },
 };
 
-const normalizeStatusCode = (code: string) => code.trim().toUpperCase();
+const normalizeStatusCode = (value: string) => {
+  return value
+    .trim()
+    .replace(/[\s-]+/g, "_")
+    .toUpperCase();
+};
 
 const generateTicketNumber = async (): Promise<string> => {
   const count = await prisma.maintenanceTicket.count();
@@ -167,12 +237,43 @@ const generateTicketNumber = async (): Promise<string> => {
   return `TKT-${String(count + 1).padStart(6, "0")}`;
 };
 
+
+const getStatusCodeVariants = (codes: string[]) => {
+  return [
+    ...new Set(
+      codes.flatMap((rawCode) => {
+        const normalized = normalizeStatusCode(rawCode);
+
+        return [
+          rawCode.trim(),
+          normalized,
+          normalized.toLowerCase(),
+          normalized.replace(/_/g, "-"),
+          normalized.replace(/_/g, " "),
+        ];
+      })
+    ),
+  ].filter(Boolean);
+};
+
 const findStatusByCodes = async (codes: string[]) => {
+  const variants = getStatusCodeVariants(codes);
+
+  if (variants.length === 0) {
+    return null;
+  }
+
   return prisma.maintenanceStatus.findFirst({
     where: {
-      code: {
-        in: codes,
-      },
+      OR: variants.map((code) => ({
+        code: {
+          equals: code,
+          mode: "insensitive",
+        },
+      })),
+    },
+    orderBy: {
+      id: "asc",
     },
   });
 };
@@ -699,11 +800,7 @@ export const changeStatus = async (
     });
   }
 
-  const status = await prisma.maintenanceStatus.findUnique({
-    where: {
-      code: normalizedStatusCode,
-    },
-  });
+  const status = await findStatusByCodes([statusCode]);
 
   if (!status) {
     throw Object.assign(new Error("Statut invalide"), {
