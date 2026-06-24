@@ -141,4 +141,28 @@ export const styles = StyleSheet.create({
     color: "#0f172a",
     marginBottom: 14,
   },
+
+  locationHistoryCard: {
+  borderWidth: 1,
+  borderColor: "#bfdbfe",
+  backgroundColor: "#f8fbff",
+},
+
+locationHistoryCardDisabled: {
+  opacity: 0.7,
+},
+
+locationHistoryHeader: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+},
+
+locationHistoryHint: {
+  marginTop: 9,
+  color: "#2563eb",
+  fontSize: 11,
+  fontWeight: "800",
+},
 });

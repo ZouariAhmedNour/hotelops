@@ -5,7 +5,10 @@ import {
   Text,
   TextInput,
   View,
+  TouchableOpacity,
 } from "react-native";
+
+import { Feather } from "@expo/vector-icons";
 
 import AppButton from "../../../components/ui/AppButton";
 import { colors } from "../../../theme/colors";
@@ -26,7 +29,7 @@ const normalizeStatusCode = (value?: string | null) => {
     .toUpperCase();
 };
 
-export default function AgentTaskDetailScreen({ route }: any) {
+export default function AgentTaskDetailScreen({ route, navigation }: any) {
   const { taskId } = route.params;
 
   const {
@@ -87,8 +90,7 @@ export default function AgentTaskDetailScreen({ route }: any) {
   const statusCode = normalizeStatusCode(task.status?.code);
 
   const isPartiallyResolved =
-    statusCode === "PARTIALLY_RESOLVED" ||
-    statusCode === "PARTIAL_RESOLVED";
+    statusCode === "PARTIALLY_RESOLVED" || statusCode === "PARTIAL_RESOLVED";
 
   const isFinal =
     task.status?.isFinal ||
@@ -106,16 +108,23 @@ export default function AgentTaskDetailScreen({ route }: any) {
 
   const showAccept = !workflowLocked && !isAccepted;
   const showStart = !workflowLocked && isAccepted && !isStarted;
-  const showPause =
-    !workflowLocked &&
-    isStarted &&
-    statusCode !== "PENDING";
+  const showPause = !workflowLocked && isStarted && statusCode !== "PENDING";
+
+  const canOpenLocationHistory = Boolean(task.location?.id);
+
+  const openLocationHistory = () => {
+    if (!task.location?.id) {
+      return;
+    }
+
+    navigation.navigate("AgentLocationHistory", {
+      locationId: task.location.id,
+      locationName: task.location.name,
+    });
+  };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-    >
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.headerCard}>
         <Text style={styles.ticketNumber}>{task.ticketNumber}</Text>
 
@@ -135,13 +144,36 @@ export default function AgentTaskDetailScreen({ route }: any) {
       </View>
 
       <View style={styles.row}>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoLabel}>Localisation</Text>
+       <TouchableOpacity
+  style={[
+    styles.infoCard,
+    styles.locationHistoryCard,
+    !canOpenLocationHistory && styles.locationHistoryCardDisabled,
+  ]}
+  activeOpacity={0.82}
+  disabled={!canOpenLocationHistory}
+  onPress={openLocationHistory}
+>
+  <View style={styles.locationHistoryHeader}>
+    <Text style={styles.infoLabel}>Localisation</Text>
 
-          <Text style={styles.infoValue}>
-            {task.location?.name || "Non définie"}
-          </Text>
-        </View>
+    <Feather
+      name="clock"
+      size={16}
+      color={canOpenLocationHistory ? "#2563eb" : "#94a3b8"}
+    />
+  </View>
+
+  <Text style={styles.infoValue}>
+    {task.location?.name || "Non définie"}
+  </Text>
+
+  {canOpenLocationHistory && (
+    <Text style={styles.locationHistoryHint}>
+      Voir l’historique des interventions →
+    </Text>
+  )}
+</TouchableOpacity>
 
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>Priorité</Text>
@@ -187,9 +219,7 @@ export default function AgentTaskDetailScreen({ route }: any) {
 
       {isPartiallyResolved && (
         <View style={styles.card}>
-          <Text style={styles.sectionTitle}>
-            Solution temporaire appliquée
-          </Text>
+          <Text style={styles.sectionTitle}>Solution temporaire appliquée</Text>
 
           <Text style={styles.description}>
             {task.temporaryFixNote ||
@@ -211,9 +241,7 @@ export default function AgentTaskDetailScreen({ route }: any) {
                 Intervention lourde nécessaire
               </Text>
 
-              <Text style={styles.description}>
-                {task.followUpReason}
-              </Text>
+              <Text style={styles.description}>{task.followUpReason}</Text>
             </>
           )}
 
@@ -226,8 +254,7 @@ export default function AgentTaskDetailScreen({ route }: any) {
                 },
               ]}
             >
-              Spécialité recommandée :{" "}
-              {task.recommendedSpecialty}
+              Spécialité recommandée : {task.recommendedSpecialty}
             </Text>
           )}
         </View>
@@ -260,9 +287,7 @@ export default function AgentTaskDetailScreen({ route }: any) {
       {!workflowLocked && (
         <>
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>
-              Réparation définitive
-            </Text>
+            <Text style={styles.sectionTitle}>Réparation définitive</Text>
 
             <TextInput
               value={resolutionNote}
@@ -282,9 +307,7 @@ export default function AgentTaskDetailScreen({ route }: any) {
                 },
               ]}
             >
-              <Text style={styles.sectionTitle}>
-                Temps d’intervention
-              </Text>
+              <Text style={styles.sectionTitle}>Temps d’intervention</Text>
 
               <Text style={styles.progress}>
                 {task.startedAt ? elapsedLabel : "Non démarrée"}
@@ -305,21 +328,13 @@ export default function AgentTaskDetailScreen({ route }: any) {
             followUpTitle={followUpTitle}
             followUpDescription={followUpDescription}
             recommendedSpecialty={recommendedSpecialty}
-            requiresExpertIntervention={
-              requiresExpertIntervention
-            }
+            requiresExpertIntervention={requiresExpertIntervention}
             onChangeTemporaryFixNote={setTemporaryFixNote}
             onChangeExpertReason={setExpertReason}
             onChangeFollowUpTitle={setFollowUpTitle}
-            onChangeFollowUpDescription={
-              setFollowUpDescription
-            }
-            onChangeRecommendedSpecialty={
-              setRecommendedSpecialty
-            }
-            onChangeRequiresExpertIntervention={
-              setRequiresExpertIntervention
-            }
+            onChangeFollowUpDescription={setFollowUpDescription}
+            onChangeRecommendedSpecialty={setRecommendedSpecialty}
+            onChangeRequiresExpertIntervention={setRequiresExpertIntervention}
             onSubmit={partialResolveTask}
           />
         </>

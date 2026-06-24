@@ -1,5 +1,6 @@
 import api from "../../../services/api";
 import type { MaintenanceTicket } from "../../../types/ticket";
+import { AgentLocationHistoryResponse } from "../types/locationHistory.types";
 
 export type AgentTaskListResponse = {
   tasks: MaintenanceTicket[];
@@ -72,6 +73,14 @@ export const agentMobileService = {
     const response = await api.get(`/agent/tasks/${id}`);
     return response.data?.data ?? response.data;
   },
+
+  getLocationHistory: async (
+  locationId: number
+): Promise<AgentLocationHistoryResponse> => {
+  const response = await api.get(`/locations/${locationId}/history`);
+
+  return response.data?.data ?? response.data;
+},
 
   acceptTask: async (id: number): Promise<MaintenanceTicket> => {
     const response = await api.patch(`/agent/tasks/${id}/accept`);

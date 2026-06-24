@@ -17,6 +17,7 @@ import { colors } from "../theme/colors";
 import AgentHomeScreen from "../features/agent/screens/AgentHomeScreen";
 import AgentTaskListScreen from "../features/agent/screens/AgentTaskListScreen";
 import AgentTaskDetailScreen from "../features/agent/screens/AgentTaskDetailScreen";
+import AgentLocationHistoryScreen from "../features/agent/screens/AgentLocationHistoryScreen";
 
 export type RootStackParamList = {
   Login: undefined;
@@ -35,6 +36,11 @@ export type RootStackParamList = {
   AgentTasks: undefined;
   AgentTaskDetail: {
     taskId: number;
+  };
+
+  AgentLocationHistory: {
+    locationId: number;
+    locationName?: string;
   };
 };
 
@@ -97,6 +103,16 @@ function AgentStack() {
         options={{
           title: "Détail intervention",
         }}
+      />
+
+      <Stack.Screen
+        name="AgentLocationHistory"
+        component={AgentLocationHistoryScreen}
+        options={({ route }: any) => ({
+          title: route.params?.locationName
+            ? `Historique · ${route.params.locationName}`
+            : "Historique endroit",
+        })}
       />
 
       {PublicScreens()}
