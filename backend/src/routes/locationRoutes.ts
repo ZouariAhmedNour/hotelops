@@ -7,6 +7,10 @@ import { authenticate, authorize } from "../middleware/auth";
 
 const router = Router();
 
+const locationIdParamSchema = z.object({
+  id: z.coerce.number(),
+});
+
 const locationAssetSchema = z.object({
   assetId: z.coerce.number(),
   quantity: z.coerce.number().optional(),
@@ -43,6 +47,22 @@ registry.registerPath({
   responses: {
     200: {
       description: "Liste des endroits avec équipements",
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/locations/{id}/history",
+  tags: ["Locations"],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: locationIdParamSchema,
+  },
+  responses: {
+    200: {
+      description:
+        "Historique des interventions, KPI, équipements récurrents et tendances",
     },
   },
 });
@@ -133,6 +153,11 @@ router.get(
   authorize("ADMIN", "CHEF_MAINT", "RECEPTION", "MAINTENANCE_AGENT", "USER"),
   locationController.list
 );
+
+router.get(
+  "/:id/history",
+  authorize("ADMIN","CHEF_MAINT","MAINTENANCE_AGENT","MAINTENANCE"),
+  locationController.history);
 
 router.get(
   "/:id",

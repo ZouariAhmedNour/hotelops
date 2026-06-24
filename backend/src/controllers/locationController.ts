@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { z } from "zod";
-
+import * as locationHistoryService from "../services/locationHistoryService";
 import * as locationService from "../services/locationService";
 import { success } from "../utils/response";
 
@@ -13,6 +13,8 @@ const locationTypeSchema = z.enum([
   "PARKING",
   "OTHER",
 ]);
+
+const locationIdSchema = z.coerce.number().int().positive();
 
 const locationAssetSchema = z.object({
   assetId: z.coerce.number().int().positive(),
@@ -77,6 +79,22 @@ export const getOne = async (
     );
 
     return success(res, location);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const history = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const locationId = locationIdSchema.parse(req.params.id);
+
+    const data = await locationHistoryService.getLocationHistory(locationId);
+
+    return success(res, data);
   } catch (error) {
     next(error);
   }

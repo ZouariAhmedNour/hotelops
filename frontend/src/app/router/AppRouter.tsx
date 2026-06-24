@@ -34,6 +34,7 @@ import AppLayout from "../../shared/components/layout/AppLayout";
 import LocationManagementPage from "../../features/locations/pages/LocationManagementPage";
 import MaintenanceCertificationsPage from "../../features/maintenance-staff/pages/MaintenanceCertificationsPage";
 import AssetManagementPage from "../../features/assets/pages/AssetManagementPage";
+import LocationHistoryPage from "../../features/locations/pages/LocationHistoryPage";
 
 const AppRouter = () => {
   return (
@@ -125,10 +126,12 @@ const AppRouter = () => {
                 element={<LocationManagementPage />}
               />
 
-               <Route
-                path={ROUTES.ASSETS}
-                element={<AssetManagementPage />}
+              <Route
+                path={ROUTES.LOCATION_HISTORY}
+                element={<LocationHistoryPage />}
               />
+
+              <Route path={ROUTES.ASSETS} element={<AssetManagementPage />} />
 
               <Route
                 path={ROUTES.QR_CODES}

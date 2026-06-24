@@ -1,5 +1,7 @@
+import { Link } from "react-router-dom";
 import {
   Edit,
+  History,
   MapPinned,
   PackageSearch,
   QrCode,
@@ -43,7 +45,11 @@ const LocationCard = ({
   );
 
   const visibleAssets = activeAssets.slice(0, 5);
-  const remainingAssets = Math.max(0, activeAssets.length - visibleAssets.length);
+
+  const remainingAssets = Math.max(
+    0,
+    activeAssets.length - visibleAssets.length
+  );
 
   const assetCount = location._count?.locationAssets ?? activeAssets.length;
 
@@ -171,6 +177,14 @@ const LocationCard = ({
       </div>
 
       <div className="mt-5 flex flex-wrap gap-3">
+        <Link
+          to={`/locations/${location.id}/history`}
+          className="inline-flex items-center gap-2 rounded-full bg-[#13234b] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0f1d3f]"
+        >
+          <History size={16} />
+          Historique
+        </Link>
+
         <Button
           onClick={() => onGenerateQr(location)}
           className="rounded-full px-4"

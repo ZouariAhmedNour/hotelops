@@ -24,6 +24,7 @@ export const ROUTES = {
   MAINTENANCE_STAFF_AGENT_DETAIL: "/maintenance/staff/agents/:id",
 
   LOCATIONS: "/locations",
+  LOCATION_HISTORY: "/locations/:id/history",
   ASSETS: "/assets",
   QR_CODES: "/qr-codes",
 
