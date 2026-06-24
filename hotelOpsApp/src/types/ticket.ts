@@ -1,86 +1,102 @@
-export type MaintenanceStatus = {
-  id: number;
-  name: string;
-  code: string;
+export type TicketStatus = {
+  id?: number;
+  name?: string;
+  code?: string;
   color?: string | null;
   isFinal?: boolean;
 };
 
-export type MaintenancePriority = {
-  id: number;
-  name: string;
-  code: string;
+export type TicketPriority = {
+  id?: number;
+  name?: string;
+  code?: string;
   sortOrder?: number;
   slaHours?: number | null;
 };
 
-export type MaintenanceCategory = {
-  id: number;
-  name: string;
+export type TicketCategory = {
+  id?: number;
+  name?: string;
   icon?: string | null;
-  isActive?: boolean;
 };
 
-export type Location = {
-  id: number;
-  name: string;
-  code: string;
-  type: string;
+export type TicketLocation = {
+  id?: number;
+  name?: string;
+  code?: string;
+  type?: string;
   zone?: string | null;
   floor?: string | null;
   roomNumber?: string | null;
-  description?: string | null;
-  isActive?: boolean;
 };
 
-export type UserLite = {
-  id: number;
-  firstName: string;
-  lastName: string;
+export type TicketUser = {
+  id?: number;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   phone?: string | null;
 };
 
-export type MaintenanceAttachment = {
+export type TicketAttachment = {
   id: number;
-  ticketId: number;
   filePath: string;
   fileName: string;
-  mimeType: string;
-  fileSize: number;
+  mimeType?: string | null;
+  fileSize?: number;
   photoType?: string | null;
   caption?: string | null;
-  createdAt: string;
-  url?: string;
+  createdAt?: string;
+  uploadedBy?: TicketUser | null;
 };
 
-export type MaintenanceComment = {
+export type TicketMaterial = {
   id: number;
-  ticketId: number;
-  userId: number;
-  comment: string;
-  isInternal: boolean;
-  createdAt: string;
-  user?: UserLite;
-};
-
-export type MaintenanceTicketEvent = {
-  id: number;
-  ticketId: number;
-  userId?: number | null;
-  type: string;
-  message?: string | null;
-  createdAt: string;
-  user?: UserLite | null;
-};
-
-export type InterventionMaterial = {
-  id: number;
-  ticketId: number;
   name: string;
   quantity: number;
   unit?: string | null;
-  createdAt: string;
+  createdAt?: string;
+};
+
+export type TicketEvent = {
+  id: number;
+  type: string;
+  message?: string | null;
+  metadata?: unknown;
+  createdAt?: string;
+  user?: TicketUser | null;
+};
+
+export type TicketAsset = {
+  id: number;
+  assetId: number;
+  createdAt?: string;
+  asset?: {
+    id: number;
+    name: string;
+    code: string;
+    category?: string | null;
+    icon?: string | null;
+  };
+};
+
+export type LinkedTicket = {
+  id: number;
+  ticketNumber: string;
+  title: string;
+  parentTicketId?: number | null;
+  reportedFrom?: string | null;
+  progress?: number;
+  temporaryFixNote?: string | null;
+  followUpReason?: string | null;
+  recommendedSpecialty?: string | null;
+  requiresExpertIntervention?: boolean;
+  createdAt?: string;
+
+  status?: TicketStatus | null;
+  priority?: TicketPriority | null;
+  category?: TicketCategory | null;
+  location?: TicketLocation | null;
 };
 
 export type MaintenanceTicket = {
@@ -89,12 +105,12 @@ export type MaintenanceTicket = {
   title: string;
   description: string;
 
-  locationId: number;
-  categoryId: number;
-  priorityId: number;
-  statusId: number;
-  reportedByUserId: number;
-  assignedToUserId?: number | null;
+  locationId?: number;
+  categoryId?: number;
+  priorityId?: number;
+  statusId?: number;
+
+  parentTicketId?: number | null;
 
   reportedFrom?: string | null;
   urgencyLevel?: number | null;
@@ -105,25 +121,56 @@ export type MaintenanceTicket = {
   startedAt?: string | null;
   pausedAt?: string | null;
   resolvedAt?: string | null;
+  validatedAt?: string | null;
   closedAt?: string | null;
 
   resolutionNote?: string | null;
+  closureNote?: string | null;
   pendingReason?: string | null;
   needHelpReason?: string | null;
+
+  temporaryFixNote?: string | null;
+  followUpReason?: string | null;
+  recommendedSpecialty?: string | null;
+  requiresExpertIntervention?: boolean;
+  followUpCreatedAt?: string | null;
+
   timeSpentMinutes?: number | null;
 
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 
-  location: Location;
-  category: MaintenanceCategory;
-  priority: MaintenancePriority;
-  status: MaintenanceStatus;
-  reportedBy?: UserLite;
-  assignedTo?: UserLite | null;
+  location?: TicketLocation | null;
+  category?: TicketCategory | null;
+  priority?: TicketPriority | null;
+  status?: TicketStatus | null;
 
-  comments?: MaintenanceComment[];
-  attachments?: MaintenanceAttachment[];
-  events?: MaintenanceTicketEvent[];
-  materials?: InterventionMaterial[];
+  reportedBy?: TicketUser | null;
+  assignedTo?: TicketUser | null;
+  validatedBy?: TicketUser | null;
+
+  parentTicket?: LinkedTicket | null;
+  followUpTickets?: LinkedTicket[];
+
+  attachments?: TicketAttachment[];
+  materials?: TicketMaterial[];
+  events?: TicketEvent[];
+  ticketAssets?: TicketAsset[];
+
+  comments?: Array<{
+    id: number;
+    comment: string;
+    isInternal?: boolean;
+    createdAt?: string;
+    user?: TicketUser | null;
+  }>;
+
+  _count?: {
+    comments?: number;
+    attachments?: number;
+    events?: number;
+    materials?: number;
+    ticketAssets?: number;
+    followUpTickets?: number;
+  };
 };

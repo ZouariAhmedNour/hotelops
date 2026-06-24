@@ -21,6 +21,32 @@ export type ResolveTaskPayload = {
   }[];
 };
 
+export type PartialResolveTaskPayload = {
+  temporaryFixNote: string;
+  followUpTitle?: string;
+  followUpDescription: string;
+
+  followUpPriorityId?: number;
+  followUpCategoryId?: number;
+
+  requiresExpertIntervention?: boolean;
+  expertReason: string;
+  recommendedSpecialty?: string;
+
+  timeSpentMinutes?: number;
+
+  materialsUsed?: {
+    name: string;
+    quantity: number;
+    unit?: string;
+  }[];
+};
+
+export type PartialResolveTaskResponse = {
+  originalTicket: MaintenanceTicket;
+  followUpTicket: MaintenanceTicket;
+};
+
 export const agentMobileService = {
   getMe: async () => {
     const response = await api.get("/agent/me");
@@ -108,10 +134,27 @@ export const agentMobileService = {
     data: ResolveTaskPayload
   ): Promise<MaintenanceTicket> => {
     const response = await api.patch(`/agent/tasks/${id}/resolve`, data);
+
     return response.data?.data ?? response.data;
   },
 
-  addNote: async (id: number, comment: string, isInternal = true) => {
+  partialResolveTask: async (
+    id: number,
+    data: PartialResolveTaskPayload
+  ): Promise<PartialResolveTaskResponse> => {
+    const response = await api.patch(
+      `/agent/tasks/${id}/partial-resolve`,
+      data
+    );
+
+    return response.data?.data ?? response.data;
+  },
+
+  addNote: async (
+    id: number,
+    comment: string,
+    isInternal = true
+  ) => {
     const response = await api.post(`/agent/tasks/${id}/notes`, {
       comment,
       isInternal,
@@ -136,6 +179,7 @@ export const agentMobileService = {
 
     const response = await api.post(`/agent/tasks/${id}/photos`, formData, {
       headers: {
+        Accept: "application/json",
         "Content-Type": "multipart/form-data",
       },
     });

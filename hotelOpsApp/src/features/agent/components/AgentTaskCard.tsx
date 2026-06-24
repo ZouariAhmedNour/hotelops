@@ -1,5 +1,5 @@
 import React from "react";
-import { TouchableOpacity, Text, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 
 import type { MaintenanceTicket } from "../../../types/ticket";
 import AgentTaskStatusBadge from "./AgentTaskStatusBadge";
@@ -10,7 +10,10 @@ type Props = {
   onPress: () => void;
 };
 
-export default function AgentTaskCard({ task, onPress }: Props) {
+export default function AgentTaskCard({
+  task,
+  onPress,
+}: Props) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress}>
       <View style={styles.topRow}>
@@ -18,6 +21,7 @@ export default function AgentTaskCard({ task, onPress }: Props) {
 
         <AgentTaskStatusBadge
           label={task.status?.name}
+          code={task.status?.code}
           color={task.status?.color}
         />
       </View>
@@ -30,6 +34,7 @@ export default function AgentTaskCard({ task, onPress }: Props) {
 
       <View style={styles.footer}>
         <Text style={styles.priority}>{task.priority?.name}</Text>
+
         <Text style={styles.progress}>{task.progress || 0}%</Text>
       </View>
     </TouchableOpacity>

@@ -466,11 +466,25 @@ export const listTickets = async (query: ListTicketsQuery) => {
   if (query.locationId) where.locationId = Number(query.locationId);
   if (query.categoryId) where.categoryId = Number(query.categoryId);
 
-  if (query.statusCode) {
-    where.status = {
-      code: normalizeStatusCode(query.statusCode),
+  if (query.statusCode?.trim()) {
+  const requestedStatus = await findStatusByCodes([
+    query.statusCode,
+  ]);
+
+  if (!requestedStatus) {
+    return {
+      data: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        totalPages: 0,
+      },
     };
   }
+
+  where.statusId = requestedStatus.id;
+}
 
   if (query.priorityCode) {
     where.priority = {

@@ -133,10 +133,15 @@ const ticketInclude: Prisma.MaintenanceTicketInclude = {
   },
 
   attachments: {
-    orderBy: {
-      createdAt: "desc",
+  include: {
+    uploadedBy: {
+      select: userSelect,
     },
   },
+  orderBy: {
+    createdAt: "desc",
+  },
+},
 
   events: {
     include: {
@@ -995,19 +1000,20 @@ export const agentMobileService = {
       : undefined;
 
     return prisma.$transaction(async (tx) => {
-      const currentOriginal = await tx.maintenanceTicket.findUnique({
-        where: {
-          id: ticketId,
-        },
-        include: {
-          status: true,
-          ticketAssets: {
-            select: {
-              assetId: true,
-            },
-          },
-        },
-      });
+     const currentOriginal = await tx.maintenanceTicket.findUnique({
+  where: {
+    id: ticketId,
+  },
+  include: {
+    status: true,
+
+    ticketAssets: {
+      select: {
+        assetId: true,
+      },
+    },
+  },
+});
 
       if (!currentOriginal) {
         throw createHttpError("Ticket original introuvable", 404);
@@ -1078,6 +1084,50 @@ export const agentMobileService = {
         },
       });
 
+      const sourceAgentAttachments = await tx.maintenanceAttachment.findMany({
+  where: {
+    ticketId,
+    uploadedByUserId: userId,
+  },
+  select: {
+    filePath: true,
+    fileName: true,
+    mimeType: true,
+    fileSize: true,
+    uploadedByUserId: true,
+    photoType: true,
+    caption: true,
+  },
+});
+
+let copiedAttachmentCount = 0;
+
+if (sourceAgentAttachments.length > 0) {
+  const copiedAttachments = await tx.maintenanceAttachment.createMany({
+    data: sourceAgentAttachments.map((attachment) => ({
+      ticketId: followUpTicket.id,
+
+      // Le ticket de suivi pointe vers le même fichier physique.
+      filePath: attachment.filePath,
+      fileName: attachment.fileName,
+      mimeType: attachment.mimeType,
+      fileSize: attachment.fileSize,
+
+      // L’agent qui a pris la photo reste l’auteur.
+      uploadedByUserId: attachment.uploadedByUserId,
+
+      photoType: attachment.photoType,
+
+      // Rend visible l’origine de la photo dans le dashboard.
+      caption: attachment.caption
+        ? `${attachment.caption} — Copiée depuis ${originalTicket.ticketNumber}`
+        : `Photo agent copiée depuis ${originalTicket.ticketNumber}`,
+    })),
+  });
+
+  copiedAttachmentCount = copiedAttachments.count;
+}
+
       if (currentOriginal.ticketAssets.length > 0) {
         await tx.maintenanceTicketAsset.createMany({
           data: currentOriginal.ticketAssets.map((item) => ({
@@ -1087,6 +1137,8 @@ export const agentMobileService = {
           skipDuplicates: true,
         });
       }
+
+    
 
       await persistTicketRiskAssessment(
         tx,
@@ -1115,6 +1167,7 @@ export const agentMobileService = {
           metadata: {
             parentTicketId: ticketId,
             parentTicketNumber: originalTicket.ticketNumber,
+            copiedAgentAttachmentCount: copiedAttachmentCount,
             requiresExpertIntervention:
               body.requiresExpertIntervention ?? false,
             recommendedSpecialty:
@@ -1124,6 +1177,23 @@ export const agentMobileService = {
       });
 
       await tx.maintenanceTicketEvent.create({
+  data: {
+    ticketId: followUpTicket.id,
+    userId,
+    type: "AGENT_ATTACHMENTS_COPIED",
+    message:
+      copiedAttachmentCount > 0
+        ? `${copiedAttachmentCount} photo(s) ou pièce(s) jointe(s) récupérée(s) depuis ${originalTicket.ticketNumber}.`
+        : "Aucune photo agent à récupérer depuis le ticket original.",
+    metadata: {
+      parentTicketId: ticketId,
+      parentTicketNumber: originalTicket.ticketNumber,
+      copiedAttachmentCount,
+    },
+  },
+});
+
+      await tx.maintenanceTicketEvent.create({
         data: {
           ticketId,
           userId,
@@ -1131,15 +1201,15 @@ export const agentMobileService = {
           fromStatusId: currentOriginal.statusId,
           toStatusId: partialResolvedStatus.id,
           message: temporaryFixNote,
-          metadata: {
-            followUpTicketId: followUpTicket.id,
-            followUpTicketNumber,
-            requiresExpertIntervention:
-              body.requiresExpertIntervention ?? false,
-            recommendedSpecialty:
-              optionalText(body.recommendedSpecialty),
-            expertReason,
-          },
+        metadata: {
+  followUpTicketId: followUpTicket.id,
+  followUpTicketNumber,
+  requiresExpertIntervention:
+    body.requiresExpertIntervention ?? false,
+  recommendedSpecialty: optionalText(body.recommendedSpecialty),
+  expertReason,
+  copiedAgentAttachmentCount: copiedAttachmentCount,
+},
         },
       });
 

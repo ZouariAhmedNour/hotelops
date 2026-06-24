@@ -1,22 +1,30 @@
 import React from "react";
 import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-
   ActivityIndicator,
+  ScrollView,
+  Text,
   TextInput,
+  View,
 } from "react-native";
 
 import AppButton from "../../../components/ui/AppButton";
 import { colors } from "../../../theme/colors";
 
-import AgentTaskStatusBadge from "../components/AgentTaskStatusBadge";
-import { useAgentTaskDetail } from "../hooks/useAgentTaskDetail";
-import { styles } from "../styles/agentTaskDetail.styles";
 import AgentTaskActions from "../components/AgentTaskActions";
 import AgentTaskPhotoSections from "../components/AgentTaskPhotoSections";
+import AgentTaskStatusBadge from "../components/AgentTaskStatusBadge";
+import LinkedTicketsCard from "../components/LinkedTicketsCard";
+import PartialResolveForm from "../components/PartialResolveForm";
+
+import { useAgentTaskDetail } from "../hooks/useAgentTaskDetail";
+import { styles } from "../styles/agentTaskDetail.styles";
+
+const normalizeStatusCode = (value?: string | null) => {
+  return (value ?? "")
+    .trim()
+    .replace(/[\s-]+/g, "_")
+    .toUpperCase();
+};
 
 export default function AgentTaskDetailScreen({ route }: any) {
   const { taskId } = route.params;
@@ -29,6 +37,24 @@ export default function AgentTaskDetailScreen({ route }: any) {
     resolutionNote,
     setResolutionNote,
 
+    temporaryFixNote,
+    setTemporaryFixNote,
+
+    expertReason,
+    setExpertReason,
+
+    followUpTitle,
+    setFollowUpTitle,
+
+    followUpDescription,
+    setFollowUpDescription,
+
+    recommendedSpecialty,
+    setRecommendedSpecialty,
+
+    requiresExpertIntervention,
+    setRequiresExpertIntervention,
+
     elapsedLabel,
 
     afterPhotos,
@@ -38,6 +64,7 @@ export default function AgentTaskDetailScreen({ route }: any) {
     startTask,
     pauseTask,
     resolveTask,
+    partialResolveTask,
     uploadPhoto,
   } = useAgentTaskDetail(taskId);
 
@@ -57,25 +84,38 @@ export default function AgentTaskDetailScreen({ route }: any) {
     );
   }
 
-  const statusCode = task.status?.code?.trim().toUpperCase();
+  const statusCode = normalizeStatusCode(task.status?.code);
 
-const isFinal =
-  task.status?.isFinal ||
-  statusCode === "RESOLVED" ||
-  statusCode === "CLOSED" ||
-  statusCode === "CANCELLED" ||
-  !!task.resolvedAt ||
-  !!task.closedAt;
+  const isPartiallyResolved =
+    statusCode === "PARTIALLY_RESOLVED" ||
+    statusCode === "PARTIAL_RESOLVED";
 
-const isAccepted = !!task.acceptedAt || statusCode === "ASSIGNED";
-const isStarted = !!task.startedAt || statusCode === "IN_PROGRESS";
+  const isFinal =
+    task.status?.isFinal ||
+    statusCode === "RESOLVED" ||
+    statusCode === "CLOSED" ||
+    statusCode === "CANCELLED" ||
+    statusCode === "CANCELED" ||
+    Boolean(task.resolvedAt) ||
+    Boolean(task.closedAt);
 
-const showAccept = !isFinal && !task.acceptedAt;
-const showStart = !isFinal && isAccepted && !isStarted;
-const showPause = !isFinal && isStarted;
+  const workflowLocked = isFinal || isPartiallyResolved;
+
+  const isAccepted = Boolean(task.acceptedAt);
+  const isStarted = Boolean(task.startedAt);
+
+  const showAccept = !workflowLocked && !isAccepted;
+  const showStart = !workflowLocked && isAccepted && !isStarted;
+  const showPause =
+    !workflowLocked &&
+    isStarted &&
+    statusCode !== "PENDING";
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
       <View style={styles.headerCard}>
         <Text style={styles.ticketNumber}>{task.ticketNumber}</Text>
 
@@ -83,96 +123,207 @@ const showPause = !isFinal && isStarted;
 
         <AgentTaskStatusBadge
           label={task.status?.name}
+          code={task.status?.code}
           color={task.status?.color}
         />
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Description</Text>
+
         <Text style={styles.description}>{task.description}</Text>
       </View>
 
       <View style={styles.row}>
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>Localisation</Text>
-          <Text style={styles.infoValue}>{task.location?.name}</Text>
+
+          <Text style={styles.infoValue}>
+            {task.location?.name || "Non définie"}
+          </Text>
         </View>
 
         <View style={styles.infoCard}>
           <Text style={styles.infoLabel}>Priorité</Text>
-          <Text style={styles.infoValue}>{task.priority?.name}</Text>
+
+          <Text style={styles.infoValue}>
+            {task.priority?.name || "Non définie"}
+          </Text>
         </View>
       </View>
 
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Progression</Text>
+
         <Text style={styles.progress}>{task.progress || 0}%</Text>
       </View>
 
-    <AgentTaskActions
-  loading={actionLoading}
-  showAccept={showAccept}
-  showStart={showStart}
-  showPause={showPause}
-  onAccept={acceptTask}
-  onStart={startTask}
-  onPause={pauseTask}
-/>
+      <LinkedTicketsCard
+        parentTicket={task.parentTicket}
+        followUpTickets={task.followUpTickets}
+      />
+
+      <AgentTaskActions
+        loading={actionLoading}
+        showAccept={showAccept}
+        showStart={showStart}
+        showPause={showPause}
+        onAccept={acceptTask}
+        onStart={startTask}
+        onPause={pauseTask}
+      />
 
       <View style={styles.card}>
-  <Text style={styles.sectionTitle}>Photos</Text>
+        <Text style={styles.sectionTitle}>Photos</Text>
 
-<AgentTaskPhotoSections
-  attachments={task.attachments || []}
-  afterPhotos={afterPhotos}
-  onAddFromCamera={() => uploadPhoto(true)}
-  onAddFromGallery={() => uploadPhoto(false)}
-  onRemoveAfterPhoto={removeAfterPhoto}
-/>
-</View>
+        <AgentTaskPhotoSections
+          attachments={task.attachments || []}
+          afterPhotos={afterPhotos}
+          onAddFromCamera={() => uploadPhoto(true)}
+          onAddFromGallery={() => uploadPhoto(false)}
+          onRemoveAfterPhoto={removeAfterPhoto}
+        />
+      </View>
 
-     {isFinal ? (
-  <View style={styles.card}>
-    <Text style={styles.sectionTitle}>Résolution</Text>
+      {isPartiallyResolved && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>
+            Solution temporaire appliquée
+          </Text>
 
-    <Text style={styles.description}>
-      {task.resolutionNote || "Ce ticket est déjà résolu."}
-    </Text>
+          <Text style={styles.description}>
+            {task.temporaryFixNote ||
+              task.resolutionNote ||
+              "Solution temporaire enregistrée."}
+          </Text>
 
-    {task.timeSpentMinutes !== undefined && task.timeSpentMinutes !== null && (
-      <Text style={[styles.description, { marginTop: 10 }]}>
-        Temps passé : {task.timeSpentMinutes} min
-      </Text>
-    )}
-  </View>
-) : (
-  <View style={styles.card}>
-    <Text style={styles.sectionTitle}>Résolution</Text>
+          {!!task.followUpReason && (
+            <>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  {
+                    marginTop: 18,
+                    fontSize: 15,
+                  },
+                ]}
+              >
+                Intervention lourde nécessaire
+              </Text>
 
-    <TextInput
-      value={resolutionNote}
-      onChangeText={setResolutionNote}
-      placeholder="Décrivez ce qui a été réparé..."
-      placeholderTextColor="#94a3b8"
-      multiline
-      style={styles.textArea}
-    />
+              <Text style={styles.description}>
+                {task.followUpReason}
+              </Text>
+            </>
+          )}
 
-    <View style={styles.card}>
-      <Text style={styles.sectionTitle}>Temps d’intervention</Text>
+          {!!task.recommendedSpecialty && (
+            <Text
+              style={[
+                styles.description,
+                {
+                  marginTop: 12,
+                },
+              ]}
+            >
+              Spécialité recommandée :{" "}
+              {task.recommendedSpecialty}
+            </Text>
+          )}
+        </View>
+      )}
 
-      <Text style={styles.progress}>
-        {task.startedAt ? elapsedLabel : "Non démarrée"}
-      </Text>
-    </View>
+      {isFinal && (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Résolution définitive</Text>
 
-    <AppButton
-      title="Marquer comme résolu"
-      onPress={resolveTask}
-      loading={actionLoading}
-    />
-  </View>
-)}
+          <Text style={styles.description}>
+            {task.resolutionNote || "Ce ticket est déjà résolu."}
+          </Text>
+
+          {task.timeSpentMinutes !== undefined &&
+            task.timeSpentMinutes !== null && (
+              <Text
+                style={[
+                  styles.description,
+                  {
+                    marginTop: 10,
+                  },
+                ]}
+              >
+                Temps passé : {task.timeSpentMinutes} min
+              </Text>
+            )}
+        </View>
+      )}
+
+      {!workflowLocked && (
+        <>
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>
+              Réparation définitive
+            </Text>
+
+            <TextInput
+              value={resolutionNote}
+              onChangeText={setResolutionNote}
+              placeholder="Décrivez ce qui a été réparé..."
+              placeholderTextColor="#94a3b8"
+              multiline
+              style={styles.textArea}
+            />
+
+            <View
+              style={[
+                styles.card,
+                {
+                  marginBottom: 12,
+                  backgroundColor: "#f8fafc",
+                },
+              ]}
+            >
+              <Text style={styles.sectionTitle}>
+                Temps d’intervention
+              </Text>
+
+              <Text style={styles.progress}>
+                {task.startedAt ? elapsedLabel : "Non démarrée"}
+              </Text>
+            </View>
+
+            <AppButton
+              title="Marquer comme résolu"
+              onPress={resolveTask}
+              loading={actionLoading}
+            />
+          </View>
+
+          <PartialResolveForm
+            loading={actionLoading}
+            temporaryFixNote={temporaryFixNote}
+            expertReason={expertReason}
+            followUpTitle={followUpTitle}
+            followUpDescription={followUpDescription}
+            recommendedSpecialty={recommendedSpecialty}
+            requiresExpertIntervention={
+              requiresExpertIntervention
+            }
+            onChangeTemporaryFixNote={setTemporaryFixNote}
+            onChangeExpertReason={setExpertReason}
+            onChangeFollowUpTitle={setFollowUpTitle}
+            onChangeFollowUpDescription={
+              setFollowUpDescription
+            }
+            onChangeRecommendedSpecialty={
+              setRecommendedSpecialty
+            }
+            onChangeRequiresExpertIntervention={
+              setRequiresExpertIntervention
+            }
+            onSubmit={partialResolveTask}
+          />
+        </>
+      )}
     </ScrollView>
   );
 }

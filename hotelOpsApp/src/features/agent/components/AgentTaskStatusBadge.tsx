@@ -1,15 +1,47 @@
 import React from "react";
-import { Text, StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 type Props = {
   label?: string;
+  code?: string | null;
   color?: string | null;
 };
 
-export default function AgentTaskStatusBadge({ label, color }: Props) {
+const normalizeStatusCode = (value?: string | null) => {
+  return (value ?? "")
+    .trim()
+    .replace(/[\s-]+/g, "_")
+    .toUpperCase();
+};
+
+export default function AgentTaskStatusBadge({
+  label,
+  code,
+  color,
+}: Props) {
+  const statusCode = normalizeStatusCode(code);
+
+  const isPartiallyResolved =
+    statusCode === "PARTIALLY_RESOLVED" ||
+    statusCode === "PARTIAL_RESOLVED";
+
+  const backgroundColor = isPartiallyResolved
+    ? "#fef3c7"
+    : color || "#e2e8f0";
+
+  const textColor = isPartiallyResolved
+    ? "#b45309"
+    : "#0f172a";
+
+  const displayLabel = isPartiallyResolved
+    ? "Partiellement résolu"
+    : label || code || "Statut";
+
   return (
-    <View style={[styles.badge, { backgroundColor: color || "#e2e8f0" }]}>
-      <Text style={styles.text}>{label || "Statut"}</Text>
+    <View style={[styles.badge, { backgroundColor }]}>
+      <Text style={[styles.text, { color: textColor }]}>
+        {displayLabel}
+      </Text>
     </View>
   );
 }
@@ -25,6 +57,5 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#0f172a",
   },
 });
