@@ -1,45 +1,68 @@
-import { NextFunction, Request, Response } from "express";
-import { ZodError } from "zod";
+// src/middleware/errorHandler.ts
+import { ErrorRequestHandler, NextFunction, Request, Response } from 'express';
+import { Prisma } from '@prisma/client';
+import { AppError } from '../utils/appError';
+import { error as sendError } from '../utils/response';
 
-export const errorHandler = (
-  err: any,
-  req: Request,
+function describeTarget(meta: unknown): string {
+  const target = (meta as { target?: unknown } | null | undefined)?.target;
+  if (Array.isArray(target)) return target.map((value) => String(value)).join(', ');
+  if (typeof target === 'string') return target;
+  return 'champ unique';
+}
+
+export const errorHandler: ErrorRequestHandler = (
+  err: unknown,
+  _req: Request,
   res: Response,
-  next: NextFunction
+  next: NextFunction,
 ) => {
-  console.error('[ErrorHandler]', err);
-
-  // 🔹 Zod validation
-  if (err instanceof ZodError) {
-    return res.status(400).json({
-      success: false,
-      message: 'Données invalides',
-      errors: err.issues.map(e => ({
-        field: e.path.join('.'),
-        message: e.message,
-      })),
-    });
+  if (res.headersSent) {
+    next(err);
+    return;
   }
 
-  // 🔹 Prisma unique constraint
-  if (err.code === 'P2002') {
-    return res.status(409).json({
-      success: false,
-      message: "Cette valeur existe déjà (contrainte d'unicité)",
-    });
+  // 1. Erreurs metier explicites
+  if (err instanceof AppError) {
+    sendError(res, err.message, err.statusCode, err.details ?? null);
+    return;
   }
 
-  // 🔹 Prisma not found
-  if (err.code === 'P2025') {
-    return res.status(404).json({
-      success: false,
-      message: 'Ressource introuvable',
-    });
+  // 2. Erreurs Prisma connues
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    switch (err.code) {
+      case 'P2002':
+        sendError(res, `Cette valeur existe deja (${describeTarget(err.meta)})`, 409);
+        return;
+      case 'P2003':
+        sendError(res, 'Reference invalide : un element lie est introuvable', 422);
+        return;
+      case 'P2025':
+        sendError(res, 'Ressource introuvable ou deja modifiee', 404);
+        return;
+      default:
+        break;
+    }
   }
 
-  // 🔹 Default error
-  return res.status(err.statusCode || 500).json({
-    success: false,
-    message: err.message || 'Erreur interne du serveur',
-  });
+  if (err instanceof Prisma.PrismaClientValidationError) {
+    sendError(res, 'Requete invalide vers la base de donnees', 400);
+    return;
+  }
+
+  // 3. ZodError qui n'est pas passee par parseBody / parseQuery
+  if (err instanceof Error && err.name === 'ZodError') {
+    const issues = (err as unknown as { issues?: unknown }).issues;
+    sendError(res, 'Donnees invalides', 422, Array.isArray(issues) ? issues : null);
+    return;
+  }
+
+  // 4. Filet de securite
+  console.error('[errorHandler]', err);
+  const isProduction = process.env.NODE_ENV === 'production';
+  const message =
+    !isProduction && err instanceof Error && err.message ? err.message : 'Erreur serveur';
+  sendError(res, message, 500);
 };
+
+export default errorHandler;

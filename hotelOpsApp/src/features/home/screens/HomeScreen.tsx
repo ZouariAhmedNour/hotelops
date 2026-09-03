@@ -9,6 +9,7 @@ import {
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 import AppCard from "../../../components/ui/AppCard";
+import ServicesEntryCard from "../../clientServices/components/ServicesEntryCard";
 import { quickActionsByRole } from "../constants/quickActions";
 import { styles } from "../styles/home.styles";
 import { useAuth } from "../../../contexts/AuthContext";
@@ -36,8 +37,15 @@ export default function HomeScreen({ navigation }: any) {
   const actions = quickActionsByRole[roleCode] || quickActionsByRole.USER;
 
   const handleQuickActionPress = (title: string) => {
-    if (title === "Créer ticket" || title === "Mes demandes") {
+    if (title === "Créer ticket") {
       navigation.navigate("CreateTicket");
+      return;
+    }
+
+    // « Mes demandes » couvre desormais aussi les commandes et reservations
+    // du module services, pas seulement les tickets de maintenance.
+    if (title === "Mes demandes") {
+      navigation.navigate("MyRequests", { tab: "orders" });
       return;
     }
 
@@ -107,6 +115,8 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </AppCard>
       </TouchableOpacity>
+
+      <ServicesEntryCard />
 
       <Text style={styles.sectionTitle}>Services rapides</Text>
 

@@ -21,6 +21,8 @@ import locationQrCodeRoutes from './routes/locationQrCodeRoutes';
 import safetyRuleRoutes from './routes/safetyRuleRoutes';
 import certificationRoutes from './routes/certificationRoutes';
 import assetRoutes from './routes/assetRoutes';
+import serviceRoutes from './routes/serviceRoutes';
+import { uploadDir } from './config/env';
 
 const app = express();
 
@@ -51,6 +53,10 @@ app.use("/api/public", publicTicketRoutes);
 
 app.use("/api/certifications", certificationRoutes);
 app.use("/api/safety-rules", safetyRuleRoutes);
+
+app.use('/api/services', serviceRoutes);
+
+app.use(`/${uploadDir}`, express.static(path.join(__dirname, '../', uploadDir)));
 
 // Swagger
 setupSwagger(app);

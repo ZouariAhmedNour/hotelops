@@ -97,6 +97,7 @@ export const styles = StyleSheet.create({
   primaryCard: {
     backgroundColor: colors.primary,
     marginTop: 18,
+    marginBottom: 14,
   },
 
   primaryCardRow: {

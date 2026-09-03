@@ -18,8 +18,21 @@ import AgentHomeScreen from "../features/agent/screens/AgentHomeScreen";
 import AgentTaskListScreen from "../features/agent/screens/AgentTaskListScreen";
 import AgentTaskDetailScreen from "../features/agent/screens/AgentTaskDetailScreen";
 import AgentLocationHistoryScreen from "../features/agent/screens/AgentLocationHistoryScreen";
+import BookingDetailScreen from "../features/clientServices/screens/BookingDetailScreen";
+import OrderDetailScreen from "../features/clientServices/screens/OrderDetailScreen";
+import ServicesHomeScreen from "../features/clientServices/screens/ServicesHomeScreen";
+import ServiceCatalogScreen from "../features/clientServices/screens/ServiceCatalogScreen";
+import { domainLabel } from "../features/clientServices/utils/labels";
+import ServiceItemDetailScreen from "../features/clientServices/screens/ServiceItemDetailScreen";
+import RoomServiceCartScreen from "../features/clientServices/screens/RoomServiceCartScreen";
+import RestaurantBookingScreen from "../features/clientServices/screens/RestaurantBookingScreen";
+import SpaBookingScreen from "../features/clientServices/screens/SpaBookingScreen";
+import GenericBookingScreen from "../features/clientServices/screens/GenericBookingScreen";
+import MyRequestsScreen from "../features/clientServices/screens/MyRequestsScreen";
+import type { ServicesStackParamList } from "../features/clientServices/types/navigation.types";
 
-export type RootStackParamList = {
+/** Routes historiques de l'app (auth, tickets, agent de maintenance). */
+type CoreStackParamList = {
   Login: undefined;
   Register: undefined;
 
@@ -43,6 +56,13 @@ export type RootStackParamList = {
     locationName?: string;
   };
 };
+
+/**
+ * Les 10 routes du module services sont declarees dans le feature lui-meme
+ * (features/clientServices/types/navigation.types.ts) et fusionnees ici.
+ * Sens de dependance : AppNavigator importe le feature, jamais l'inverse.
+ */
+export type RootStackParamList = CoreStackParamList & ServicesStackParamList;
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -72,6 +92,93 @@ function PublicScreens() {
         component={PublicCreateTicketScreen}
         options={{
           title: "Signalement",
+        }}
+      />
+    </>
+  );
+}
+
+/** Les 10 ecrans du module services, empiles depuis l'accueil client. */
+function ServicesScreens() {
+  return (
+    <>
+      <Stack.Screen
+        name="ServicesHome"
+        component={ServicesHomeScreen}
+        options={{
+          title: "Services de l'hôtel",
+        }}
+      />
+
+      <Stack.Screen
+        name="ServiceCatalog"
+        component={ServiceCatalogScreen}
+        options={({ route }: any) => ({
+          title: domainLabel(route.params?.domain),
+        })}
+      />
+
+      <Stack.Screen
+        name="ServiceItemDetail"
+        component={ServiceItemDetailScreen}
+        options={{
+          title: "Détail",
+        }}
+      />
+
+      <Stack.Screen
+        name="RoomServiceCart"
+        component={RoomServiceCartScreen}
+        options={{
+          title: "Mon panier",
+        }}
+      />
+
+      <Stack.Screen
+        name="RestaurantBooking"
+        component={RestaurantBookingScreen}
+        options={{
+          title: "Réserver une table",
+        }}
+      />
+
+      <Stack.Screen
+        name="SpaBooking"
+        component={SpaBookingScreen}
+        options={{
+          title: "Réserver un soin",
+        }}
+      />
+
+      <Stack.Screen
+        name="GenericBooking"
+        component={GenericBookingScreen}
+        options={({ route }: any) => ({
+          title: domainLabel(route.params?.domain),
+        })}
+      />
+
+      <Stack.Screen
+        name="MyRequests"
+        component={MyRequestsScreen}
+        options={{
+          title: "Mes demandes",
+        }}
+      />
+
+      <Stack.Screen
+        name="OrderDetail"
+        component={OrderDetailScreen}
+        options={{
+          title: "Ma commande",
+        }}
+      />
+
+      <Stack.Screen
+        name="BookingDetail"
+        component={BookingDetailScreen}
+        options={{
+          title: "Ma réservation",
         }}
       />
     </>
@@ -138,6 +245,8 @@ function UserStack() {
           title: "Nouveau ticket",
         }}
       />
+
+      {ServicesScreens()}
 
       {PublicScreens()}
     </Stack.Navigator>

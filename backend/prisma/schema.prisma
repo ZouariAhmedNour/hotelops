@@ -52,6 +52,11 @@ model User {
   agentProfile MaintenanceAgentProfile?
 
   qrCodesCreated LocationQrCode[] @relation("QrCodeCreatedBy")
+
+  serviceOrders        ServiceOrder[]        @relation("ServiceOrderUser")
+  serviceOrderEvents   ServiceOrderEvent[]   @relation("ServiceOrderEventUser")
+  serviceBookings      ServiceBooking[]      @relation("ServiceBookingUser")
+  serviceBookingEvents ServiceBookingEvent[] @relation("ServiceBookingEventUser")
 }
 
 // ============================================================
@@ -212,11 +217,11 @@ model MaintenanceTicket {
   needHelpReason String?
 
   // Résolution partielle / intervention lourde.
-  temporaryFixNote            String?
-  followUpReason              String?
-  recommendedSpecialty         String?
-  requiresExpertIntervention  Boolean   @default(false)
-  followUpCreatedAt           DateTime?
+  temporaryFixNote           String?
+  followUpReason             String?
+  recommendedSpecialty       String?
+  requiresExpertIntervention Boolean   @default(false)
+  followUpCreatedAt          DateTime?
 
   timeSpentMinutes Int?
 
@@ -557,4 +562,308 @@ model PublicTicketReporter {
   createdAt DateTime @default(now())
 
   tickets MaintenanceTicket[]
+}
+
+// ============================================================
+// MODULE HOTEL SERVICES — TRONC COMMUN (CATALOGUE GÉNÉRIQUE)
+// ============================================================
+
+model ServiceCategory {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  domain      String // ROOM_SERVICE | RESTAURANT | SPA | PLAYROOM | POOL | FITNESS | ACTIVITY | CONCIERGERIE
+  icon        String?
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items ServiceItem[]
+  slots ServiceSlot[]
+
+  @@index([domain])
+  @@index([isActive])
+}
+
+model ServiceItem {
+  id              Int      @id @default(autoincrement())
+  categoryId      Int
+  domain          String // dénormalisé depuis la catégorie
+  name            String
+  description     String?
+  photos          String[] @default([])
+  price           Decimal? @db.Decimal(10, 2)
+  priceMin        Decimal? @db.Decimal(10, 2)
+  priceMax        Decimal? @db.Decimal(10, 2)
+  durationMinutes Int?
+  prepTimeMinutes Int?
+  allergens       String[] @default([])
+  isAvailable     Boolean  @default(true)
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  category        ServiceCategory         @relation(fields: [categoryId], references: [id])
+  options         ServiceItemOption[]
+  supplements     ServiceItemSupplement[]
+  slots           ServiceSlot[]
+  orderLines      ServiceOrderLine[]
+  bookings        ServiceBooking[]
+  spaTreatment    SpaTreatment?
+  restaurantTable RestaurantTable?
+
+  @@index([categoryId])
+  @@index([domain, isActive])
+}
+
+model ServiceItemOption {
+  id         Int      @id @default(autoincrement())
+  itemId     Int
+  name       String
+  priceDelta Decimal  @default(0) @db.Decimal(10, 2)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  item ServiceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model ServiceItemSupplement {
+  id        Int      @id @default(autoincrement())
+  itemId    Int
+  name      String
+  price     Decimal  @default(0) @db.Decimal(10, 2)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  item ServiceItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+}
+
+model ServiceSlot {
+  id         Int      @id @default(autoincrement())
+  itemId     Int?
+  categoryId Int?
+  dayOfWeek  Int
+  startTime  String
+  endTime    String
+  capacity   Int?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  item     ServiceItem?     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  category ServiceCategory? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@index([categoryId])
+}
+
+// ============================================================
+// MODULE HOTEL SERVICES — EXTENSION SPA
+// ============================================================
+
+model SpaTreatment {
+  id                   Int      @id @default(autoincrement())
+  itemId               Int      @unique
+  genderPreference     String   @default("NO_PREFERENCE")
+  allowTherapistChoice Boolean  @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  item       ServiceItem             @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  therapists SpaTreatmentTherapist[]
+
+  @@index([genderPreference])
+}
+
+model SpaTherapist {
+  id        Int      @id @default(autoincrement())
+  firstName String
+  lastName  String
+  gender    String
+  photo     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  treatments SpaTreatmentTherapist[]
+  bookings   ServiceBooking[]
+
+  @@index([gender, isActive])
+}
+
+model SpaTreatmentTherapist {
+  id          Int @id @default(autoincrement())
+  treatmentId Int
+  therapistId Int
+
+  treatment SpaTreatment @relation(fields: [treatmentId], references: [id], onDelete: Cascade)
+  therapist SpaTherapist @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+
+  @@unique([treatmentId, therapistId])
+  @@index([therapistId])
+}
+
+// ============================================================
+// MODULE HOTEL SERVICES — EXTENSION RESTAURANT
+// ============================================================
+
+model RestaurantRoom {
+  id       Int     @id @default(autoincrement())
+  name     String
+  code     String  @unique
+  type     String
+  capacity Int?
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tables RestaurantTable[]
+
+  @@index([type, isActive])
+}
+
+model RestaurantTable {
+  id        Int      @id @default(autoincrement())
+  roomId    Int
+  itemId    Int?     @unique
+  name      String
+  code      String   @unique
+  seats     Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  room     RestaurantRoom   @relation(fields: [roomId], references: [id])
+  item     ServiceItem?     @relation(fields: [itemId], references: [id])
+  bookings ServiceBooking[]
+
+  @@index([roomId])
+}
+
+// ============================================================
+// MODULE HOTEL SERVICES — COMMANDES (ROOM SERVICE)
+// ============================================================
+
+model ServiceOrder {
+  id            Int       @id @default(autoincrement())
+  orderNumber   String    @unique
+  domain        String    @default("ROOM_SERVICE")
+  userId        Int?
+  roomNumber    String?
+  status        String    @default("NEW")
+  totalAmount   Decimal   @default(0) @db.Decimal(10, 2)
+  paymentMethod String?
+  isPaid        Boolean   @default(false)
+  comment       String?
+  cancelReason  String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deliveredAt   DateTime?
+  cancelledAt   DateTime?
+
+  user   User?               @relation("ServiceOrderUser", fields: [userId], references: [id])
+  lines  ServiceOrderLine[]
+  events ServiceOrderEvent[]
+
+  @@index([status])
+  @@index([userId])
+  @@index([domain])
+}
+
+model ServiceOrderLine {
+  id            Int      @id @default(autoincrement())
+  orderId       Int
+  itemId        Int
+  quantity      Int      @default(1)
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  optionIds     Int[]    @default([])
+  supplementIds Int[]    @default([])
+  comment       String?
+  createdAt     DateTime @default(now())
+
+  order ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item  ServiceItem  @relation(fields: [itemId], references: [id])
+
+  @@index([orderId])
+  @@index([itemId])
+}
+
+model ServiceOrderEvent {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  userId     Int?
+  type       String
+  fromStatus String?
+  toStatus   String?
+  message    String?
+  createdAt  DateTime @default(now())
+
+  order ServiceOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  user  User?        @relation("ServiceOrderEventUser", fields: [userId], references: [id])
+
+  @@index([orderId])
+}
+
+// ============================================================
+// MODULE HOTEL SERVICES — RÉSERVATIONS (RESTAURANT / SPA / LOISIRS)
+// ============================================================
+
+model ServiceBooking {
+  id               Int       @id @default(autoincrement())
+  bookingNumber    String    @unique
+  domain           String
+  itemId           Int?
+  tableId          Int?
+  therapistId      Int?
+  userId           Int?
+  roomNumber       String?
+  bookingDate      DateTime
+  startTime        String
+  durationMinutes  Int?
+  partySize        Int?
+  genderPreference String?
+  occasion         String?
+  preferences      String?
+  notes            String?
+  status           String    @default("PENDING")
+  cancelReason     String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  confirmedAt      DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+
+  item      ServiceItem?          @relation(fields: [itemId], references: [id])
+  table     RestaurantTable?      @relation(fields: [tableId], references: [id])
+  therapist SpaTherapist?         @relation(fields: [therapistId], references: [id])
+  user      User?                 @relation("ServiceBookingUser", fields: [userId], references: [id])
+  events    ServiceBookingEvent[]
+
+  @@index([domain])
+  @@index([status])
+  @@index([bookingDate])
+  @@index([userId])
+}
+
+model ServiceBookingEvent {
+  id         Int      @id @default(autoincrement())
+  bookingId  Int
+  userId     Int?
+  type       String
+  fromStatus String?
+  toStatus   String?
+  message    String?
+  createdAt  DateTime @default(now())
+
+  booking ServiceBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User?          @relation("ServiceBookingEventUser", fields: [userId], references: [id])
+
+  @@index([bookingId])
 }
